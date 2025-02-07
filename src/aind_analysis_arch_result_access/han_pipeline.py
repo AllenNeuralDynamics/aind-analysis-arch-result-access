@@ -29,36 +29,27 @@ def get_session_table():
     # --- Load dfs from s3 ---
     logger.info(f"Loading session table from {s3_path_root} ...")
     df = get_s3_pkl(f"{s3_path_root}/df_sessions.pkl")
-    df.rename(
-        columns={"user_name": "trainer", "h2o": "subject_alias"}, inplace=True
-    )
+    df.rename(columns={"user_name": "trainer", "h2o": "subject_alias"}, inplace=True)
 
     logger.info(f"Loading mouse PI mapping from {s3_path_root} ...")
-    df_mouse_pi_mapping = pd.DataFrame(
-        get_s3_json(f"{s3_path_root}/mouse_pi_mapping.json")
-    )
+    df_mouse_pi_mapping = pd.DataFrame(get_s3_json(f"{s3_path_root}/mouse_pi_mapping.json"))
 
     logger.info("Post-hoc processing...")
     # --- Cleaning up ---
     # Remove hierarchical columns
     df.columns = df.columns.get_level_values(1)
     df.sort_values(["session_start_time"], ascending=False, inplace=True)
-    df["session_start_time"] = df["session_start_time"].astype(
-        str
-    )  # Turn to string
+    df["session_start_time"] = df["session_start_time"].astype(str)  # Turn to string
     df = df.reset_index()
 
     # Remove invalid session number
-    df.dropna(
-        subset=["session"], inplace=True
-    )  # Remove rows with no session number (only leave the nwb file with the largest finished_trials for now)
+    # Remove rows with no session number (effectively only leave the nwb file
+    # with the largest finished_trials for now)
+    df.dropna(subset=["session"], inplace=True)
     df.drop(df.query("session < 1").index, inplace=True)
 
     # Remove invalid subject_id
-    df = df[
-        (999999 > df["subject_id"].astype(int))
-        & (df["subject_id"].astype(int) > 300000)
-    ]
+    df = df[(999999 > df["subject_id"].astype(int)) & (df["subject_id"].astype(int) > 300000)]
 
     # Remove zero finished trials
     df = df[df["finished_trials"] > 0]
@@ -90,22 +81,17 @@ def get_session_table():
     df["trainer"] = df["trainer"].apply(trainer_mapper)
 
     # Merge in PI name
-    df = df.merge(
-        df_mouse_pi_mapping, how="left", on="subject_id"
-    )  # Merge in PI name
+    df = df.merge(df_mouse_pi_mapping, how="left", on="subject_id")  # Merge in PI name
     df.loc[df["PI"].isnull(), "PI"] = df.loc[
         df["PI"].isnull()
-        & (
-            df["trainer"].isin(df["PI"])
-            | df["trainer"].isin(["Han Hou", "Marton Rozsa"])
-        ),
+        & (df["trainer"].isin(df["PI"]) | df["trainer"].isin(["Han Hou", "Marton Rozsa"])),
         "trainer",
     ]  # Fill in PI with trainer if PI is missing and the trainer was ever a PI
 
     # Mapping data source (Room + Hardware etc)
-    df[["institute", "rig_type", "room", "hardware", "data_source"]] = df[
-        "rig"
-    ].apply(lambda x: pd.Series(data_source_mapper(x)))
+    df[["institute", "rig_type", "room", "hardware", "data_source"]] = df["rig"].apply(
+        lambda x: pd.Series(data_source_mapper(x))
+    )
 
     # --- Removing abnormal values ---
     df.loc[
@@ -154,12 +140,10 @@ def get_session_table():
     )
 
     # last day's total water
-    df["water_day_total_last_session"] = df.groupby("subject_id")[
-        "water_day_total"
-    ].shift(1)
-    df["water_after_session_last_session"] = df.groupby("subject_id")[
-        "water_after_session"
-    ].shift(1)
+    df["water_day_total_last_session"] = df.groupby("subject_id")["water_day_total"].shift(1)
+    df["water_after_session_last_session"] = df.groupby("subject_id")["water_after_session"].shift(
+        1
+    )
 
     # fill nan for autotrain fields
     filled_values = {
@@ -194,9 +178,7 @@ def get_session_table():
         "task",
         "notes",
     ]
-    new_order = first_several_cols + [
-        col for col in df.columns if col not in first_several_cols
-    ]
+    new_order = first_several_cols + [col for col in df.columns if col not in first_several_cols]
     df = df[new_order]
 
     return df

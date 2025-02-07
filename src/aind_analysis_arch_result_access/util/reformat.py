@@ -26,9 +26,7 @@ def trainer_mapper(trainer):
 
 def data_source_mapper(rig):
     """From rig string, return "{institute}_{rig_type}_{room}_{hardware}" """
-    institute = (
-        "Janelia" if ("bpod" in rig) and not ("AIND" in rig) else "AIND"
-    )
+    institute = "Janelia" if ("bpod" in rig) and not ("AIND" in rig) else "AIND"
     hardware = "bpod" if ("bpod" in rig) else "bonsai"
     rig_type = "ephys" if ("ephys" in rig.lower()) else "training"
 
