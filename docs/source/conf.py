@@ -10,7 +10,7 @@ from datetime import date
 from os.path import abspath, dirname
 from pathlib import Path
 
-from aind_analysis_arch_access_results import __version__ as package_version
+from aind_analysis_arch_result_access import __version__ as package_version
 
 INSTITUTE_NAME = "Allen Institute for Neural Dynamics"
 
