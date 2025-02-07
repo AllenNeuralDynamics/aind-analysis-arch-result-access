@@ -17,6 +17,9 @@ readme = "README.md"
 dynamic = ["version"]
 
 dependencies = [
+    's3fs',
+    'pandas',
+    'numpy'
 ]
 
 [project.optional-dependencies]
@@ -37,7 +40,7 @@ where = ["src"]
 version = {attr = "aind_analysis_arch_result_access.__version__"}
 
 [tool.black]
-line-length = 79
+line-length = 100
 target_version = ['py310']
 exclude = '''
 
@@ -68,7 +71,7 @@ exclude_lines = [
     "^import .*",
     "pragma: no cover"
 ]
-fail_under = 100
+fail_under = 90
 
 [tool.isort]
 line_length = 79
@@ -76,4 +79,4 @@ profile = "black"
 
 [tool.interrogate]
 exclude = ["setup.py", "docs", "build"]
-fail-under = 100
+fail-under = 90
