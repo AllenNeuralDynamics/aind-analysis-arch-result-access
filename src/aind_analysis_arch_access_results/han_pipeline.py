@@ -8,11 +8,11 @@ import logging
 import numpy as np
 import pandas as pd
 
-from aind_analysis_arch_result_access.util.reformat import (
+from aind_analysis_arch_access_results.util.reformat import (
     data_source_mapper,
     trainer_mapper,
 )
-from aind_analysis_arch_result_access.util.s3 import get_s3_json, get_s3_pkl
+from aind_analysis_arch_access_results.util.s3 import get_s3_json, get_s3_pkl
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
