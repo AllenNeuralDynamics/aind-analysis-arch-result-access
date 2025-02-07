@@ -3,17 +3,21 @@ Get results from Han's pipeline
 https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pipeline
 '''
 
-import s3fs
-import pickle
-import pandas
+import logging
+from aind_analysis_arch_result_access.util.s3 import get_df_from_s3_pkl
 
-s3_path = 's3://aind-behavior-data/foraging_nwb_bonsai_processed/df_sessions.pkl'
+logger = logging.getLogger(__name__)
 
-# The processed bucket is public
-fs = s3fs.S3FileSystem(anon=True)
+s3_path_root = 's3://aind-behavior-data/foraging_nwb_bonsai_processed'
 
-# Open the file and load the pickle
-with fs.open(s3_path, 'rb') as f:
-    data = pickle.load(f)
+def get_session_table():
+    # Load the session table from s3
+    logger.info('Loading session table from s3')
+    df_session = get_df_from_s3_pkl(f'{s3_path_root}/df_sessions.pkl')
+        
+    return df_session
 
-print(data)
+
+if __name__ == '__main__':
+    df = get_session_table()
+    print(df.head())
