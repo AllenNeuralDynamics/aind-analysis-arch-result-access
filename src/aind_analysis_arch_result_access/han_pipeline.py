@@ -44,6 +44,9 @@ def get_session_table():
 
     # Remove zero finished trials
     df = df[df['finished_trials'] > 0]
+    
+    # drop 'bpod_backup_' columns
+    df.drop([col for col in df.columns if 'bpod_backup_' in col], axis=1, inplace=True)
 
     # --- Reformatting ---
     # Handle mouse and user name
@@ -95,26 +98,6 @@ def get_session_table():
     df['water_day_total_last_session'] = df.groupby('subject_id')['water_day_total'].shift(1)
     df['water_after_session_last_session'] = df.groupby('subject_id')['water_after_session'].shift(1)  
     
-    # -- overwrite the `if_stage_overriden_by_trainer`
-    # Previously it was set to True if the trainer changes stage during a session.
-    # But it is more informative to define it as whether the trainer has overridden the curriculum.
-    # In other words, it is set to True only when stage_suggested ~= stage_actual, as defined in the autotrain curriculum.
-    df.drop(columns=['if_overriden_by_trainer'], inplace=True)
-    tmp_auto_train = auto_train_manager.df_manager.query('if_closed_loop == True')[
-            [
-                "subject_id",
-                "session_date",
-                "current_stage_suggested",
-                "if_stage_overriden_by_trainer",
-            ]
-    ].copy()
-    tmp_auto_train['session_date'] = pd.to_datetime(tmp_auto_train['session_date'])
-    df = df.merge(
-        tmp_auto_train,
-        on=["subject_id", "session_date"],
-        how='left',
-    )
-
     # fill nan for autotrain fields
     filled_values = {'curriculum_name': 'None', 
                      'curriculum_version': 'None',
@@ -134,12 +117,6 @@ def get_session_table():
             df['foraging_eff_random_seed'] \
             * df['finished_rate']
 
-    # drop 'bpod_backup_' columns
-    df.drop([col for col in df.columns if 'bpod_backup_' in col], axis=1, inplace=True)
-
-    # df = df.merge(
-    #     diff_relative_weight_next_day, how='left', on=['subject_id', 'session'])
-
     # Recorder columns so that autotrain info is easier to see
     first_several_cols = ['subject_id', 'session_date', 'nwb_suffix', 'session', 'rig', 
                           'trainer', 'PI', 'curriculum_name', 'curriculum_version', 'current_stage_actual', 
@@ -147,10 +124,10 @@ def get_session_table():
     new_order = first_several_cols + [col for col in df.columns if col not in first_several_cols]
     df = df[new_order]
     
-        
-    return df_session
+    return df
 
 
 if __name__ == '__main__':
     df = get_session_table()
     print(df.head())
+    print(df.columns)
