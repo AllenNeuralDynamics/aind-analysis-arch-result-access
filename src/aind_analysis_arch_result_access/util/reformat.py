@@ -4,9 +4,9 @@ Some utils for reformatting the data
 
 
 def trainer_mapper(trainer):
-    '''
+    """
     Normalize trainer name
-    '''
+    """
     user_mapper = {
         "Avalon Amaya": ["Avalon"],
         "Ella Hilton": ["Ella"],
