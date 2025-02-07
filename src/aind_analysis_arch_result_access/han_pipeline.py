@@ -10,6 +10,8 @@ from aind_analysis_arch_result_access.util.s3 import get_s3_pkl, get_s3_json
 from aind_analysis_arch_result_access.util.reformat import trainer_mapper, data_source_mapper
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
 
 s3_path_root = 's3://aind-behavior-data/foraging_nwb_bonsai_processed'
 
@@ -18,11 +20,11 @@ def get_session_table():
     Load the session table from Han's pipeline and re-build the master table in Streamlit
     '''
     # --- Load the df from s3 ---
-    logger.info('Loading session table from s3...')
+    logger.info(f'Loading session table from {s3_path_root} ...')
     df = get_s3_pkl(f'{s3_path_root}/df_sessions.pkl')
     df.rename(columns={'user_name': 'trainer', 'h2o': 'subject_alias'}, inplace=True)
     
-    logger.info('Loading mouse PI mapping from s3...')
+    logger.info(f'Loading mouse PI mapping from {s3_path_root} ...')
     df_mouse_pi_mapping = pd.DataFrame(get_s3_json(f'{s3_path_root}/mouse_pi_mapping.json'))
     
     logger.info('Post-hoc processing...')
@@ -129,5 +131,5 @@ def get_session_table():
 
 if __name__ == '__main__':
     df = get_session_table()
-    print(df.head())
+    print(df)
     print(df.columns)
