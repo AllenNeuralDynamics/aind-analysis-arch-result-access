@@ -65,13 +65,6 @@ def get_session_table(if_load_bpod=False):
     # Remove zero finished trials
     df = df[df["finished_trials"] > 0]
 
-    # drop 'bpod_backup_' columns
-    df.drop(
-        [col for col in df.columns if "bpod_backup_" in col],
-        axis=1,
-        inplace=True,
-    )
-
     # --- Reformatting ---
     # Handle mouse and user name
     if "bpod_backup_h2o" in df.columns:
@@ -87,6 +80,13 @@ def get_session_table(if_load_bpod=False):
         )
     else:
         df["subject_alias"] = df["subject_id"]
+    
+    # drop 'bpod_backup_' columns
+    df.drop(
+        [col for col in df.columns if "bpod_backup_" in col],
+        axis=1,
+        inplace=True,
+    )
 
     # --- Normalize trainer name ---
     df["trainer"] = df["trainer"].apply(trainer_mapper)
