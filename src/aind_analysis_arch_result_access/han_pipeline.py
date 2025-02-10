@@ -25,7 +25,7 @@ def get_session_table(if_load_bpod=False):
     """
     Load the session table from Han's pipeline and re-build the master table (almost) the same one
     as in the Streamlit app https://foraging-behavior-browser.allenneuraldynamics-test.org/
-    
+
     params:
         if_load_bpod: bool, default False
             Whether to load old bpod data. If True, it will take a while.
@@ -79,7 +79,7 @@ def get_session_table(if_load_bpod=False):
         )
     else:
         df["subject_alias"] = df["subject_id"]
-    
+
     # drop 'bpod_backup_' columns
     df.drop(
         [col for col in df.columns if "bpod_backup_" in col],
