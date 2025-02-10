@@ -8,7 +8,7 @@ description = "Generated from aind-library-template"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 authors = [
-    {name = "Allen Institute for Neural Dynamics"}
+    {name = "Allen Institute for Neural Dynamics"},
     {name = "Han Hou", email = "han.hou@alleninstitute.org"}
 ]
 classifiers = [
