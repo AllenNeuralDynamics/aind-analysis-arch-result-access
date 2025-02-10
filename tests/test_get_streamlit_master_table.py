@@ -21,5 +21,6 @@ class TestGetMasterSessionTable(unittest.TestCase):
         self.assertGreater(len(df_bpod), len(df))
         print(df_bpod.head())
 
+
 if __name__ == "__main__":
     unittest.main()
