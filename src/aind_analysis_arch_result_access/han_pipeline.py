@@ -16,7 +16,6 @@ from aind_analysis_arch_result_access.util.s3 import get_s3_json, get_s3_pkl
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addHandler(logging.StreamHandler())
 
 s3_path_bonsai_root = "s3://aind-behavior-data/foraging_nwb_bonsai_processed"
 s3_path_bpod_root = "s3://aind-behavior-data/foraging_nwb_bpod_processed"
