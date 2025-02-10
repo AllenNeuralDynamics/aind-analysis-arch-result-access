@@ -8,15 +8,33 @@
 ![Python](https://img.shields.io/badge/python->=3.9-blue?logo=python)
 
 
-
-## Usage
- - To use this template, click the green `Use this template` button and `Create new repository`.
- - After github initially creates the new repository, please wait an extra minute for the initialization scripts to finish organizing the repo.
- - To enable the automatic semantic version increments: in the repository go to `Settings` and `Collaborators and teams`. Click the green `Add people` button. Add `svc-aindscicomp` as an admin. Modify the file in `.github/workflows/tag_and_publish.yml` and remove the if statement in line 65. The semantic version will now be incremented every time a code is committed into the main branch.
- - To publish to PyPI, enable semantic versioning and uncomment the publish block in `.github/workflows/tag_and_publish.yml`. The code will now be published to PyPI every time the code is committed into the main branch.
- - The `.github/workflows/test_and_lint.yml` file will run automated tests and style checks every time a Pull Request is opened. If the checks are undesired, the `test_and_lint.yml` can be deleted. The strictness of the code coverage level, etc., can be modified by altering the configurations in the `pyproject.toml` file and the `.flake8` file.
+APIs to access analysis results in the AIND behavior pipeline.
 
 ## Installation
+
+```bash
+pip install aind-analysis-arch-result-access
+```
+
+## Usage
+
+Try the demo: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14Hph9QuySbgSQBKl8PGi_nCQfoLcLUI-?usp=sharing)
+
+### Access pipeline v1.0 (Han's pipeline)
+#### Fetch the session master table in [Streamlit](https://foraging-behavior-browser.allenneuraldynamics-test.org/)
+```python
+from aind_analysis_arch_result_access.han_pipeline import get_session_table
+df = get_session_table(if_load_bpod=False)  # `if_load_bpod=True` will load additional 4000+ old sessions from bpod
+```
+#### Fetch trial table (🚧 under development)
+#### Fetch analysis figures (🚧 under development)
+### Access pipeline v2.0 (AIND analysis architecture)
+#### Fetch foraging model fitting results (🚧 under development)
+#### Fetch foraging model figures (🚧 under development)
+
+## Contributing
+
+### Installation
 To use the software, in the root directory, run
 ```bash
 pip install -e .
@@ -26,8 +44,6 @@ To develop the code, run
 ```bash
 pip install -e .[dev]
 ```
-
-## Contributing
 
 ### Linters and testing
 
