@@ -20,7 +20,8 @@ dynamic = ["version"]
 dependencies = [
     's3fs',
     'pandas',
-    'numpy'
+    'numpy',
+    'aind_data_access_api[docdb]'
 ]
 
 [project.optional-dependencies]
