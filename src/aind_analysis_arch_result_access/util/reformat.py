@@ -85,7 +85,7 @@ def split_nwb_name(nwb_name):
     nwb_suffix : int. The nwb suffix (converted from session time if available, otherwise 0)
     """
 
-    pattern = R"(?:\w+_)?(?P<subject_id>\d+)_(?P<date>\d{4}-\d{2}-\d{2})(?:_(?P<time>\d{2}-\d{2}-\d{2}))?(?:.*)?" # noqa E501
+    pattern = R"(?:\w+_)?(?P<subject_id>\d+)_(?P<date>\d{4}-\d{2}-\d{2})(?:_(?P<time>\d{2}-\d{2}-\d{2}))?(?:.*)?"  # noqa E501
     matches = re.search(pattern, nwb_name)
 
     if not matches:
