@@ -1,5 +1,4 @@
-""" Patch script to migrate records from old collection in dev to new collection in prod
-"""
+"""Patch script to migrate records from old collection in dev to new collection in prod"""
 
 from aind_data_access_api.document_db import MetadataDbClient
 
@@ -19,7 +18,7 @@ prod_db_client = MetadataDbClient(
 
 
 def modify_and_migrate_records_in_batch(skip, limit):
-    """ Migrate records from old collection to new collection in batches of size limit"""
+    """Migrate records from old collection to new collection in batches of size limit"""
 
     records_this_batch = dev_db_client._get_records(
         filter_query=None,
