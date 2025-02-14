@@ -1,7 +1,9 @@
 """
 Some utils for reformatting the data
 """
+
 import re
+
 
 def trainer_mapper(trainer):
     """
@@ -85,7 +87,7 @@ def split_nwb_name(nwb_name):
 
     pattern = R"(?:\w+_)?(?P<subject_id>\d+)_(?P<date>\d{4}-\d{2}-\d{2})(?:_(?P<time>\d{2}-\d{2}-\d{2}))?(?:.*)?"
     matches = re.search(pattern, nwb_name)
-    
+
     if not matches:
         return None, None, 0
 

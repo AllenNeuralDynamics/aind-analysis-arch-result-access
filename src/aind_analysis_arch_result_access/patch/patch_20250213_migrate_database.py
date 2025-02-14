@@ -1,4 +1,6 @@
-# %%
+""" Patch script to migrate records from old collection in dev to new collection in prod
+"""
+
 from aind_data_access_api.document_db import MetadataDbClient
 
 from aind_analysis_arch_result_access.util.reformat import split_nwb_name
@@ -12,12 +14,12 @@ dev_db_client = MetadataDbClient(
 
 # New collection
 prod_db_client = MetadataDbClient(
-    host="api.allenneuraldynamics.org", 
-    database="analysis", 
-    collection="dynamic-foraging-analysis"
+    host="api.allenneuraldynamics.org", database="analysis", collection="dynamic-foraging-analysis"
 )
 
+
 def modify_and_migrate_records_in_batch(skip, limit):
+    """ Migrate records from old collection to new collection in batches of size limit"""
 
     records_this_batch = dev_db_client._get_records(
         filter_query=None,
@@ -39,13 +41,15 @@ def modify_and_migrate_records_in_batch(skip, limit):
 
         # Overwrite s3 path to the new prod bucket
         if record["status"] == "success":
-            record["s3_location"] = f"s3://aind-dynamic-foraging-analysis-prod-o5171v/{record['_id']}"
+            record["s3_location"] = (
+                f"s3://aind-dynamic-foraging-analysis-prod-o5171v/{record['_id']}"
+            )
         else:
             record["s3_location"] = None
 
     # Upsert to new database
     response = prod_db_client.upsert_list_of_docdb_records(records_this_batch)
-    
+
     return response, len(records_this_batch)
 
 
