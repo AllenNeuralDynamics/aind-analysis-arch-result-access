@@ -1,7 +1,7 @@
 """
 Some utils for reformatting the data
 """
-
+import re
 
 def trainer_mapper(trainer):
     """
