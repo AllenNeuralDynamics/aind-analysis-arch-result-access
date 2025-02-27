@@ -14,11 +14,10 @@ from aind_analysis_arch_result_access.util.reformat import (
 )
 from aind_analysis_arch_result_access.util.s3 import get_s3_json, get_s3_pkl
 
-from aind_analysis_arch_result_access import S3_PATH_BONSAI_ROOT, S3_PATH_BPOD_ROOT
+from aind_analysis_arch_result_access import S3_PATH_BONSAI_ROOT, S3_PATH_BPOD_ROOT, DFT_ANALYSIS_DB
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
 
 
 def get_session_table(if_load_bpod=False):
@@ -192,6 +191,64 @@ def get_session_table(if_load_bpod=False):
     df = df[new_order]
 
     return df
+
+# %%
+def get_mle_available_models(subject_id: str, session_date: str):
+    """Get the available models for MLE fitting given the subject_id and session_date
+
+    Parameters
+    ----------
+    subject_id : str,
+    session_date : str,
+
+    Returns
+    -------
+    DataFrame
+        A DataFrame with columns: nwb_name, model_alias
+    """
+    records = DFT_ANALYSIS_DB.retrieve_docdb_records(
+        filter_query={
+            "subject_id": subject_id,
+            "session_date": session_date,
+        },
+        projection={"_id": 0, "nwb_name": 1,
+                    "analysis_results.fit_settings.agent_alias": 1},
+    )
+    df = pd.json_normalize(records).rename(
+        columns={"analysis_results.fit_settings.agent_alias": "model_alias"}
+    )
+
+    if df.model_alias.duplicated().any():
+        print(
+            "WARNING: Duplicated model_alias!\n"
+            "         It is possible that there are multiple nwbs for this session.\n"
+            "         You should check the time stamp in the nwb names."
+        )
+
+    return 
+
+# %%
+
+def get_mle_model_fitting(
+    subject_id: str = None,
+    session_date: str = None,
+    query: dict = None,
+    if_get_figures: bool = False,
+):
+    #%%
+    subject_id = "730945"
+    session_date = "2024-10-24"
+    
+    records = DFT_ANALYSIS_DB.retrieve_docdb_records(
+        filter_query={
+            "subject_id": subject_id,
+            "session_date": session_date,
+        }
+    )
+    
+    
+    #%%
+    pass
 
 
 if __name__ == "__main__":
