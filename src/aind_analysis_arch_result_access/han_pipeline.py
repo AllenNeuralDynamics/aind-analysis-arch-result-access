@@ -14,11 +14,11 @@ from aind_analysis_arch_result_access.util.reformat import (
 )
 from aind_analysis_arch_result_access.util.s3 import get_s3_json, get_s3_pkl
 
+from aind_analysis_arch_result_access import S3_PATH_BONSAI_ROOT, S3_PATH_BPOD_ROOT
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-s3_path_bonsai_root = "s3://aind-behavior-data/foraging_nwb_bonsai_processed"
-s3_path_bpod_root = "s3://aind-behavior-data/foraging_nwb_bpod_processed"
 
 
 def get_session_table(if_load_bpod=False):
@@ -31,16 +31,16 @@ def get_session_table(if_load_bpod=False):
             Whether to load old bpod data. If True, it will take a while.
     """
     # --- Load dfs from s3 ---
-    logger.info(f"Loading session table from {s3_path_bonsai_root} ...")
-    df = get_s3_pkl(f"{s3_path_bonsai_root}/df_sessions.pkl")
+    logger.info(f"Loading session table from {S3_PATH_BONSAI_ROOT} ...")
+    df = get_s3_pkl(f"{S3_PATH_BONSAI_ROOT}/df_sessions.pkl")
     df.rename(columns={"user_name": "trainer", "h2o": "subject_alias"}, inplace=True)
 
-    logger.info(f"Loading mouse PI mapping from {s3_path_bonsai_root} ...")
-    df_mouse_pi_mapping = pd.DataFrame(get_s3_json(f"{s3_path_bonsai_root}/mouse_pi_mapping.json"))
+    logger.info(f"Loading mouse PI mapping from {S3_PATH_BONSAI_ROOT} ...")
+    df_mouse_pi_mapping = pd.DataFrame(get_s3_json(f"{S3_PATH_BONSAI_ROOT}/mouse_pi_mapping.json"))
 
     if if_load_bpod:
-        logger.info(f"Loading old bpod data from {s3_path_bpod_root} ...")
-        df_bpod = get_s3_pkl(f"{s3_path_bpod_root}/df_sessions.pkl")
+        logger.info(f"Loading old bpod data from {S3_PATH_BPOD_ROOT} ...")
+        df_bpod = get_s3_pkl(f"{S3_PATH_BPOD_ROOT}/df_sessions.pkl")
         df_bpod.rename(columns={"user_name": "trainer", "h2o": "subject_alias"}, inplace=True)
         df = pd.concat([df, df_bpod], axis=0)
 
