@@ -331,15 +331,15 @@ def get_mle_model_fitting(
         
     if if_include_latent_variables:
         latent = get_latent_variable_from_ids(df._id)
+        df["latent_variables"] = latent
 
     return df
 
-def get_latent_variables_from_ids(_ids):
+def get_latent_variable_from_ids(_ids):
     latents = []
     for _id in _ids:
         latents.append(_get_latent_variable(_id))
     return latents
-
 
 def _get_latent_variable(id):
     # -- Rebuild s3 path from id (the job_hash) --
@@ -360,8 +360,11 @@ def _get_latent_variable(id):
 
     # Get the latent variables
     latent_variable = result_json["analysis_results"]["fitted_latent_variables"]
+    
+    if "q_value" not in latent_variable:
+        return latent_variable
 
-    # -- Add RPE to the latent variables --
+    # -- Add RPE to the latent variables, if q_value exists --
     # Notes: RPE = reward - q_value_chosen
     # In the model fitting output, len(choice) = len(reward) = n_trials,
     # but len(q_value) = n_trials + 1, because it includes a final update after the last choice.
@@ -381,7 +384,7 @@ def _get_latent_variable(id):
 
 df = get_mle_model_fitting(subject_id="730945", 
                            session_date="2024-10-24", 
-                           if_include_metrics=False,
+                           if_include_metrics=True,
                            if_include_latent_variables=True,)
 
 # %%
