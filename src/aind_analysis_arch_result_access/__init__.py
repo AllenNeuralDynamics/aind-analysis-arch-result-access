@@ -9,7 +9,7 @@ S3_PATH_BPOD_ROOT = "s3://aind-behavior-data/foraging_nwb_bpod_processed"
 S3_PATH_ANALYSIS_ROOT = "s3://aind-dynamic-foraging-analysis-prod-o5171v"
 
 # New collection
-DFT_ANALYSIS_DB = MetadataDbClient(
+analysis_docDB_dft = MetadataDbClient(
     host="api.allenneuraldynamics.org",
     database="analysis",
     collection="dynamic-foraging-analysis",

@@ -4,20 +4,27 @@ https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pip
 """
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
-from tqdm import tqdm
-import os
 
 import numpy as np
 import pandas as pd
+
+from aind_analysis_arch_result_access import (
+    S3_PATH_BONSAI_ROOT,
+    S3_PATH_BPOD_ROOT,
+    analysis_docDB_dft,
+)
 
 from aind_analysis_arch_result_access.util.reformat import (
     data_source_mapper,
     trainer_mapper,
 )
-from aind_analysis_arch_result_access.util.s3 import fs, get_s3_json, get_s3_pkl
+from aind_analysis_arch_result_access.util.s3 import (
+    get_s3_json,
+    get_s3_pkl,
+    get_s3_latent_variable_batch,
+    get_s3_mle_figure_batch,
+)
 
-from aind_analysis_arch_result_access import S3_PATH_BONSAI_ROOT, S3_PATH_BPOD_ROOT, S3_PATH_ANALYSIS_ROOT, DFT_ANALYSIS_DB
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -294,7 +301,7 @@ def get_mle_model_fitting(
 
     # -- Retrieve records --
     print(f"Query: {filter_query}")
-    records = DFT_ANALYSIS_DB.retrieve_docdb_records(
+    records = analysis_docDB_dft.retrieve_docdb_records(
         filter_query=filter_query,
         projection=projection,
         **paginate_settings,
@@ -351,7 +358,7 @@ def get_mle_model_fitting(
         return df
 
     if if_include_latent_variables:
-        latents = get_latent_variable_batch(df_success._id, 
+        latents = get_s3_latent_variable_batch(df_success._id, 
                                            max_threads_for_s3=max_threads_for_s3)
         df = df.merge(pd.DataFrame(latents), on="_id", how="left")
 
@@ -365,7 +372,7 @@ def get_mle_model_fitting(
             + df._id.map(lambda x: x[:10])
             + ".png"
         )  # Build the file names
-        download_mle_figure_batch(
+        get_s3_mle_figure_batch(
             ids=df_success._id,
             f_names=f_names,
             download_path=download_path,
@@ -374,91 +381,6 @@ def get_mle_model_fitting(
 
     return df
 
-def get_latent_variable_batch(ids, max_threads_for_s3=10):
-    with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
-        results = list(
-            tqdm(
-                executor.map(get_latent_variable, ids),
-                total=len(ids),
-                desc="Get latent variables from s3",
-            )
-        )
-    return [{"_id": _id, "latent_variables": latent} for _id, latent in zip(ids, results)]
-
-def get_latent_variable(id):
-    # -- Rebuild s3 path from id (the job_hash) --
-    path = f"{S3_PATH_ANALYSIS_ROOT}/{id}/"
-
-    # -- Try different result json names for back compatibility --
-    possible_json_names = ["docDB_mle_fitting.json", "docDB_record.json"]
-    for json_name in possible_json_names:
-        if fs.exists(f"{path}{json_name}"):
-            break
-    else:
-        logger.warning(f"Cannot find latent variables for id {id}")
-        return None
-
-    # -- Load the json --
-    # Get the full result json from s3
-    result_json = get_s3_json(f"{path}{json_name}")
-
-    # Get the latent variables
-    latent_variable = result_json["analysis_results"]["fitted_latent_variables"]
-
-    if "q_value" not in latent_variable:
-        return latent_variable
-
-    # -- Add RPE to the latent variables, if q_value exists --
-    # Notes: RPE = reward - q_value_chosen
-    # In the model fitting output, len(choice) = len(reward) = n_trials,
-    # but len(q_value) = n_trials + 1, because it includes a final update after the last choice.
-    # When computing RPE, we need to use the q_value before the choice on the chosen side.
-    choice = np.array(
-        result_json["analysis_results"]["fit_settings"]["fit_choice_history"]
-    ).astype(int)
-    reward = np.array(
-        result_json["analysis_results"]["fit_settings"]["fit_reward_history"]
-    ).astype(int)
-    q_value_before_choice = np.array(latent_variable["q_value"])[:, :-1]  # Note the :-1 here
-    q_value_chosen = q_value_before_choice[choice, np.arange(len(choice))]
-    latent_variable["rpe"] = reward - q_value_chosen
-
-    return latent_variable
-
-
-def download_mle_figure_batch(
-    ids, f_names, download_path="./results/mle_figures/", max_threads_for_s3=10
-):
-    os.makedirs(download_path, exist_ok=True)
-    with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
-        list(
-            tqdm(
-                executor.map(download_mle_figure, ids, f_names, [download_path] * len(ids)),
-                total=len(ids),
-                desc="Download figures from s3",
-            )
-        )
-
-
-def download_mle_figure(id, f_name, download_path):
-    file_name_on_s3 = "fitted_session.png"
-    
-    if fs.exists(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}"):
-        fs.download(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}", 
-                    f"{download_path}/{f_name}")
-
-
-import time
-start = time.time()
-df = get_mle_model_fitting(subject_id="730945", 
-                           #session_date="2024-10-24", 
-                           if_include_metrics=False,
-                           if_include_latent_variables=False,
-                           if_download_figures=True,
-                           max_threads_for_s3=10)
-
-print(time.time() - start)
-# %%
 
 if __name__ == "__main__":
     df = get_session_table()
