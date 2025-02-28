@@ -292,7 +292,8 @@ def get_mle_model_fitting(
 
     # -- Reformat the records --
     # Turn the nested json into a flat DataFrame and rename the columns, except params
-    params = [record["analysis_results"].pop("params") for record in records]
+    if if_include_metrics:
+        params = [record["analysis_results"].pop("params") for record in records]
     df = pd.json_normalize(records)
     df = df.rename(
         columns={
@@ -302,9 +303,11 @@ def get_mle_model_fitting(
             for col in df.columns
         }
     )
-    df["params"] = params  # Put in params as dict
 
     if if_include_metrics:
+        # Put in params as dict
+        df["params"] = params
+        
         # Compute cross_validation mean and std
         for group in ["test", "fit", "test_bias_only"]:
             df[f"prediction_accuracy_10-CV_{group}"] = df[f"prediction_accuracy_{group}"].apply(
@@ -327,7 +330,7 @@ def get_mle_model_fitting(
 
 
 df = get_mle_model_fitting(subject_id="730945", 
-                           session_date="2024-10-24", if_include_metrics=True)
+                           session_date="2024-10-24", if_include_metrics=False)
 
 # %%
 
