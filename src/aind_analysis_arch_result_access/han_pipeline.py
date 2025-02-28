@@ -17,6 +17,7 @@ from aind_analysis_arch_result_access.util.s3 import get_s3_json, get_s3_pkl
 from aind_analysis_arch_result_access import S3_PATH_BONSAI_ROOT, S3_PATH_BPOD_ROOT, DFT_ANALYSIS_DB
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
 
@@ -206,26 +207,67 @@ def get_mle_available_models(subject_id: str, session_date: str):
     DataFrame
         A DataFrame with columns: nwb_name, model_alias
     """
+
+    analysis_name = "MLE fitting"
+    analysis_ver = "first version @ 0.10.0"
+
+    # Retrieve the records
+    logger.info(f"Retrieving MLE fitting records for {subject_id} on {session_date}...")
     records = DFT_ANALYSIS_DB.retrieve_docdb_records(
         filter_query={
             "subject_id": subject_id,
             "session_date": session_date,
+            "analysis_spec.analysis_name": analysis_name,
+            "analysis_spec.analysis_ver": analysis_ver,
         },
         projection={"_id": 0, "nwb_name": 1,
-                    "analysis_results.fit_settings.agent_alias": 1},
-    )
-    df = pd.json_normalize(records).rename(
-        columns={"analysis_results.fit_settings.agent_alias": "model_alias"}
+                    "analysis_results.fit_settings.agent_alias": 1,
+                    "analysis_results.log_likelihood": 1,
+                    "analysis_results.prediction_accuracy": 1,
+                    "analysis_results.k_model": 1,
+                    "analysis_results.n_trials": 1,
+                    "analysis_results.AIC": 1,
+                    "analysis_results.BIC": 1,
+                    "analysis_results.LPT": 1,
+                    "analysis_results.LPT_AIC": 1,
+                    "analysis_results.LPT_BIC": 1,
+                    "analysis_results.cross_validation": 1,
+                    },
     )
 
-    if df.model_alias.duplicated().any():
-        print(
-            "WARNING: Duplicated model_alias!\n"
-            "         It is possible that there are multiple nwbs for this session.\n"
-            "         You should check the time stamp in the nwb names."
+    if not records:
+        logger.warning(f"No MLE fitting available for {subject_id} on {session_date}")
+        return None
+
+    # Turn the nested json into a flat DataFrame and rename the columns
+    df = pd.json_normalize(records)
+    df = df.rename(
+        columns={
+            col: col.split(".")[-1] for col in df.columns
+        }
+    )
+
+    # Compute cross_validation mean and std
+    for group in ["test", "fit", "test_bias_only"]:
+        df[f"prediction_accuracy_10-CV_{group}"] = df[f"prediction_accuracy_{group}"].apply(
+            lambda x: np.mean(x)
+        )
+        df[f"prediction_accuracy_10-CV_{group}_std"] = df[f"prediction_accuracy_{group}"].apply(
+            lambda x: np.std(x)
         )
 
-    return 
+    if df.agent_alias.duplicated().any():
+        logger.warning(
+            "WARNING: Duplicated agent_alias!\n"
+            "         There are multiple nwbs for this session:\n"
+            f"        {df.nwb_name.unique()}"
+            "         You should check the time stamps to select the one you want."
+        )
+
+    return df
+
+df = get_mle_available_models("730945", "2024-10-24")
+print(df)
 
 # %%
 
