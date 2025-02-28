@@ -230,7 +230,7 @@ def get_mle_model_fitting(
         If you see a 503 error, you may need to set paginate to True.
         See aind_data_access_api documentation.
     max_threads_for_s3: int, optional
-        The maximum number of threads for getting result from s3, by default 10
+        The maximum number of parallel threads for getting result from s3, by default 10
 
     Returns
     -------
