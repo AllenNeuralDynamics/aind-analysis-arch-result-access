@@ -238,9 +238,10 @@ def get_mle_model_fitting(
             filter_query["subject_id"] = subject_id
         if session_date:
             filter_query["session_date"] = session_date
+        if agent_alias:
+            filter_query["analysis_results.fit_settings.agent_alias"] = agent_alias
 
     # -- Retrieve records --
-    logger.info(f"Retrieving MLE fitting records for {subject_id} on {session_date}...")
     logger.info(f"Query: {filter_query}")
     records = DFT_ANALYSIS_DB.retrieve_docdb_records(
         filter_query=filter_query,
@@ -271,16 +272,21 @@ def get_mle_model_fitting(
     if not records:
         logger.warning(f"No MLE fitting available for {subject_id} on {session_date}")
         return None
-    logging.info(f"Found {len(records)} MLE fitting records!")
+    logger.info(f"Found {len(records)} MLE fitting records!")
 
     # -- Reformat the records --
-    # Turn the nested json into a flat DataFrame and rename the columns
+    # Turn the nested json into a flat DataFrame and rename the columns, except params
+    params = [record["analysis_results"].pop("params") for record in records]
     df = pd.json_normalize(records)
     df = df.rename(
         columns={
-            col: col.split(".")[-1] for col in df.columns
+            col: col.replace("analysis_results.", "")
+            .replace("cross_validation.", "")
+            .replace("fit_settings.", "")
+            for col in df.columns
         }
     )
+    df["params"] = params
 
     if if_include_metrics:
         # Compute cross_validation mean and std
@@ -293,7 +299,7 @@ def get_mle_model_fitting(
             )
 
     if subject_id and session_date and df.agent_alias.duplicated().any():
-        # If the user specifies one certain session, and there are 
+        # If the user specifies one certain session, and there are
         logger.warning(
             "Duplicated agent_alias!\n"
             "There are multiple nwbs for this session:\n"
@@ -306,7 +312,7 @@ def get_mle_model_fitting(
 
 df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24", if_include_metrics=True)
 
-#%%
+# %%
 
 if __name__ == "__main__":
     df = get_session_table()
