@@ -201,7 +201,6 @@ def get_session_table(if_load_bpod=False):
     return df
 
 
-# %%
 def get_mle_model_fitting(
     subject_id: str = None,
     session_date: str = None,
@@ -251,7 +250,7 @@ def get_mle_model_fitting(
     """
 
     # -- Build query --
-    filter_query = _update_filter_query(from_custom_query, subject_id, session_date, agent_alias)
+    filter_query = build_query(from_custom_query, subject_id, session_date, agent_alias)
 
     projection = {
         "_id": 1,
@@ -360,7 +359,7 @@ def get_mle_model_fitting(
     return df
 
 
-def _update_filter_query(
+def build_query(
     from_custom_query=None, subject_id=None, session_date=None, agent_alias=None
 ):
     """Build query for MLE fitting"""
