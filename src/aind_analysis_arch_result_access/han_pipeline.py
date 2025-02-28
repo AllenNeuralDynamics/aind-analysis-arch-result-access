@@ -14,7 +14,7 @@ from aind_analysis_arch_result_access.util.reformat import (
 )
 from aind_analysis_arch_result_access.util.s3 import get_s3_json, get_s3_pkl
 
-from aind_analysis_arch_result_access import S3_PATH_BONSAI_ROOT, S3_PATH_BPOD_ROOT, DFT_ANALYSIS_DB
+from aind_analysis_arch_result_access import S3_PATH_BONSAI_ROOT, S3_PATH_BPOD_ROOT, S3_PATH_ANALYSIS_ROOT, DFT_ANALYSIS_DB
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -254,16 +254,15 @@ def get_mle_model_fitting(
                 "agent_alias, or from_custom_query!"
             )
 
-    # -- Retrieve records --
-    logger.info(f"Query: {filter_query}")
-    records = DFT_ANALYSIS_DB.retrieve_docdb_records(
-        filter_query=filter_query,
-        projection=(
+    projection = {
+        "_id": 1,
+        "nwb_name": 1,
+        "analysis_results.fit_settings.agent_alias": 1,
+        "status": 1,
+    }
+    if if_include_metrics:
+        projection.update(
             {
-                "_id": 1,
-                "status": 1, 
-                "nwb_name": 1,
-                "analysis_results.fit_settings.agent_alias": 1,
                 "analysis_results.log_likelihood": 1,
                 "analysis_results.prediction_accuracy": 1,
                 "analysis_results.k_model": 1,
@@ -276,9 +275,13 @@ def get_mle_model_fitting(
                 "analysis_results.cross_validation": 1,
                 "analysis_results.params": 1,
             }
-            if if_include_metrics
-            else {"_id": 0, "nwb_name": 1, "analysis_results.fit_settings.agent_alias": 1}
-        ),
+        )
+
+    # -- Retrieve records --
+    logger.info(f"Query: {filter_query}")
+    records = DFT_ANALYSIS_DB.retrieve_docdb_records(
+        filter_query=filter_query,
+        projection=projection,
         **paginate_settings,
     )
 
