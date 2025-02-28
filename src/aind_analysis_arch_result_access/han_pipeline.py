@@ -13,18 +13,16 @@ from aind_analysis_arch_result_access import (
     S3_PATH_BPOD_ROOT,
     analysis_docDB_dft,
 )
-
 from aind_analysis_arch_result_access.util.reformat import (
     data_source_mapper,
     trainer_mapper,
 )
 from aind_analysis_arch_result_access.util.s3 import (
     get_s3_json,
-    get_s3_pkl,
     get_s3_latent_variable_batch,
     get_s3_mle_figure_batch,
+    get_s3_pkl,
 )
-
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -358,8 +356,9 @@ def get_mle_model_fitting(
         return df
 
     if if_include_latent_variables:
-        latents = get_s3_latent_variable_batch(df_success._id, 
-                                           max_threads_for_s3=max_threads_for_s3)
+        latents = get_s3_latent_variable_batch(
+            df_success._id, max_threads_for_s3=max_threads_for_s3
+        )
         df = df.merge(pd.DataFrame(latents), on="_id", how="left")
 
     # -- Download figures --
