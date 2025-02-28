@@ -59,7 +59,7 @@ def get_s3_latent_variable(id):
         if fs.exists(f"{path}{json_name}"):
             break
     else:
-        logger.warning(f"Cannot find latent variables for id {id}")
+        print(f"Cannot find latent variables for id {id}")
         return None
 
     # -- Load the json --
