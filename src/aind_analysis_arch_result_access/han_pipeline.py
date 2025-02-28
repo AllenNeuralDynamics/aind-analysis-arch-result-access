@@ -206,12 +206,19 @@ def get_mle_model_fitting(
 
     Parameters
     ----------
-    subject_id : str
-        The subject_id
-    session_date : str
-        The session_date
+    subject_id : str, optional
+        The subject_id, by default None
+    session_date : str, optional
+        The session_date, by default None
+    agent_alias : str, optional
+        The agent_alias, by default None
+    from_custom_query : dict, optional
+        The custom query, by default None
+        If provided, subject_id, session_date, and agent_alias will be ignored.
+        Error will be raised if none of the four is provided.
     if_include_metrics : bool, optional
         Whether to include the metrics in the DataFrame, by default True
+        If False, only the agent_alias will be included.
     paginate_settings : dict, optional
         The settings for pagination, by default {"paginate": False}.
         If you see a 503 error, you may need to set paginate to True.
@@ -232,6 +239,7 @@ def get_mle_model_fitting(
         "analysis_spec.analysis_ver": ANALYSIS_VER,
     }
     if from_custom_query:
+        # If from_custom_query is provided, ignore subject_id, session_date, and agent_alias
         filter_query = filter_query.update(from_custom_query)
     else:
         if subject_id:
@@ -240,6 +248,11 @@ def get_mle_model_fitting(
             filter_query["session_date"] = session_date
         if agent_alias:
             filter_query["analysis_results.fit_settings.agent_alias"] = agent_alias
+        if not any([subject_id, session_date, agent_alias]):
+            raise ValueError(
+                "You must provide at least one of subject_id, session_date, "
+                "agent_alias, or from_custom_query!"
+            )
 
     # -- Retrieve records --
     logger.info(f"Query: {filter_query}")
@@ -286,7 +299,7 @@ def get_mle_model_fitting(
             for col in df.columns
         }
     )
-    df["params"] = params
+    df["params"] = params  # Put in params as dict
 
     if if_include_metrics:
         # Compute cross_validation mean and std
@@ -310,7 +323,8 @@ def get_mle_model_fitting(
     return df
 
 
-df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24", if_include_metrics=True)
+df = get_mle_model_fitting(subject_id="730945", 
+                           session_date="2024-10-24", if_include_metrics=True)
 
 # %%
 
