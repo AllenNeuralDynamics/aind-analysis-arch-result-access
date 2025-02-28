@@ -5,6 +5,7 @@ https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pip
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
@@ -203,7 +204,7 @@ def get_mle_model_fitting(
     if_include_metrics: bool = True,
     if_include_latent_variables: bool = True,
     paginate_settings: dict = {"paginate": False},
-    max_threads_for_s3: int = 100,
+    max_threads_for_s3: int = 10,
 ):
     """Get the available models for MLE fitting given the subject_id and session_date
 
@@ -229,7 +230,7 @@ def get_mle_model_fitting(
         If you see a 503 error, you may need to set paginate to True.
         See aind_data_access_api documentation.
     max_threads_for_s3: int, optional
-        The maximum number of threads for getting result from s3, by default 100
+        The maximum number of threads for getting result from s3, by default 10
 
     Returns
     -------
@@ -340,9 +341,15 @@ def get_mle_model_fitting(
 
     return df
 
-def get_latent_variable_batch(_ids, max_threads_for_s3):
+def get_latent_variable_batch(_ids, max_threads_for_s3=10):
     with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
-        results = list(executor.map(_get_latent_variable, _ids))
+        results = list(
+            tqdm(
+                executor.map(_get_latent_variable, _ids),
+                total=len(_ids),
+                desc="Get latent variables from s3",
+            )
+        )
     return [{"_id": _id, "latent_variables": latent} for _id, latent in zip(_ids, results)]
 
 def get_latent_variable(id):
@@ -384,7 +391,7 @@ def get_latent_variable(id):
     latent_variable["rpe"] = reward - q_value_chosen
     
     return latent_variable
-    
+
 
 import time
 start = time.time()
