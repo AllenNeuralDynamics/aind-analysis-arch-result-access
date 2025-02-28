@@ -250,29 +250,8 @@ def get_mle_model_fitting(
         A DataFrame containing the available models for MLE fitting
     """
 
-    ANALYSIS_NAME = "MLE fitting"
-    ANALYSIS_VER = "first version @ 0.10.0"
-
     # -- Build query --
-    filter_query = {
-        "analysis_spec.analysis_name": ANALYSIS_NAME,
-        "analysis_spec.analysis_ver": ANALYSIS_VER,
-    }
-    if from_custom_query:
-        # If from_custom_query is provided, ignore subject_id, session_date, and agent_alias
-        filter_query = filter_query.update(from_custom_query)
-    else:
-        if subject_id:
-            filter_query["subject_id"] = subject_id
-        if session_date:
-            filter_query["session_date"] = session_date
-        if agent_alias:
-            filter_query["analysis_results.fit_settings.agent_alias"] = agent_alias
-        if not any([subject_id, session_date, agent_alias]):
-            raise ValueError(
-                "You must provide at least one of subject_id, session_date, "
-                "agent_alias, or from_custom_query!"
-            )
+    filter_query = _update_filter_query(from_custom_query, subject_id, session_date, agent_alias)
 
     projection = {
         "_id": 1,
@@ -379,6 +358,38 @@ def get_mle_model_fitting(
         )
 
     return df
+
+
+def _update_filter_query(
+    from_custom_query=None, subject_id=None, session_date=None, agent_alias=None
+):
+    """Build query for MLE fitting"""
+    filter_query = {
+        "analysis_spec.analysis_name": "MLE fitting",
+        "analysis_spec.analysis_ver": "first version @ 0.10.0",
+    }
+
+    # If custom query is provided, use it exclusively
+    if from_custom_query:
+        filter_query.update(from_custom_query)
+        return filter_query
+
+    # Ensure at least one of the parameters is provided
+    if not any([subject_id, session_date, agent_alias]):
+        raise ValueError(
+            "You must provide at least one of subject_id, session_date, "
+            "agent_alias, or from_custom_query!"
+        )
+
+    # Build a dictionary with only provided keys
+    standard_query = {
+        "subject_id": subject_id,
+        "session_date": session_date,
+        "analysis_results.fit_settings.agent_alias": agent_alias,
+    }
+    # Update filter_query only with non-None values
+    filter_query.update({k: v for k, v in standard_query.items() if v is not None})
+    return filter_query
 
 
 if __name__ == "__main__":
