@@ -5,6 +5,7 @@ Util functions for public S3 bucket access
 import json
 import os
 import pickle
+import numpy as np
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
