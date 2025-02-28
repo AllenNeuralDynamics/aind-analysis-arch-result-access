@@ -35,6 +35,7 @@ def get_s3_json(s3_path):
 
 
 def get_s3_latent_variable_batch(ids, max_threads_for_s3=10):
+    """ Get latent variables from s3 for a batch of ids """
     with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
         results = list(
             tqdm(
@@ -47,6 +48,7 @@ def get_s3_latent_variable_batch(ids, max_threads_for_s3=10):
 
 
 def get_s3_latent_variable(id):
+    """ Get latent variables from s3 for a single id """
     # -- Rebuild s3 path from id (the job_hash) --
     path = f"{S3_PATH_ANALYSIS_ROOT}/{id}/"
 
@@ -90,6 +92,7 @@ def get_s3_latent_variable(id):
 def get_s3_mle_figure_batch(
     ids, f_names, download_path="./results/mle_figures/", max_threads_for_s3=10
 ):
+    """ Download MLE figures from s3 for a batch of ids """
     os.makedirs(download_path, exist_ok=True)
     with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
         list(
@@ -102,6 +105,7 @@ def get_s3_mle_figure_batch(
         
 
 def get_s3_mle_figure(id, f_name, download_path):
+    """ Download MLE figures from s3 for a single id """
     file_name_on_s3 = "fitted_session.png"
     
     if fs.exists(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}"):
