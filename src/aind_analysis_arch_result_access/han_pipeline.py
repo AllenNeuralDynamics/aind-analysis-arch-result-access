@@ -220,8 +220,8 @@ def get_mle_available_models(
         A DataFrame containing the available models for MLE fitting
     """
 
-    analysis_name = "MLE fitting"
-    analysis_ver = "first version @ 0.10.0"
+    ANALYSIS_NAME = "MLE fitting"
+    ANALYSIS_VER = "first version @ 0.10.0"
 
     # Retrieve the records
     logger.info(f"Retrieving MLE fitting records for {subject_id} on {session_date}...")
@@ -229,8 +229,8 @@ def get_mle_available_models(
         filter_query={
             "subject_id": subject_id,
             "session_date": session_date,
-            "analysis_spec.analysis_name": analysis_name,
-            "analysis_spec.analysis_ver": analysis_ver,
+            "analysis_spec.analysis_name": ANALYSIS_NAME,
+            "analysis_spec.analysis_ver": ANALYSIS_VER,
         },
         projection=(
             {
