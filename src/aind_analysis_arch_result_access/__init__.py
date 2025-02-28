@@ -1,6 +1,6 @@
 """Init package"""
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from aind_data_access_api.document_db import MetadataDbClient
 
