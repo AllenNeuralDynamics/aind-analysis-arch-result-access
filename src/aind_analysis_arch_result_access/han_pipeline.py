@@ -4,6 +4,7 @@ https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pip
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -202,6 +203,7 @@ def get_mle_model_fitting(
     if_include_metrics: bool = True,
     if_include_latent_variables: bool = True,
     paginate_settings: dict = {"paginate": False},
+    max_threads_for_s3: int = 100,
 ):
     """Get the available models for MLE fitting given the subject_id and session_date
 
@@ -226,6 +228,8 @@ def get_mle_model_fitting(
         The settings for pagination, by default {"paginate": False}.
         If you see a 503 error, you may need to set paginate to True.
         See aind_data_access_api documentation.
+    max_threads_for_s3: int, optional
+        The maximum number of threads for getting result from s3, by default 100
 
     Returns
     -------
@@ -330,18 +334,17 @@ def get_mle_model_fitting(
         )
         
     if if_include_latent_variables:
-        latent = get_latent_variable_from_ids(df._id)
+        latent = get_latent_variable_batch(df._id, max_threads_for_s3=max_threads_for_s3)
         df["latent_variables"] = latent
 
     return df
 
-def get_latent_variable_from_ids(_ids):
-    latents = []
-    for _id in _ids:
-        latents.append(_get_latent_variable(_id))
+def get_latent_variable_batch(_ids, max_threads_for_s3):
+    with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
+        latents = list(executor.map(_get_latent_variable, _ids))
     return latents
 
-def _get_latent_variable(id):
+def get_latent_variable(id):
     # -- Rebuild s3 path from id (the job_hash) --
     path = f"{S3_PATH_ANALYSIS_ROOT}/{id}/"
     
@@ -382,11 +385,15 @@ def _get_latent_variable(id):
     return latent_variable
     
 
+import time
+start = time.time()
 df = get_mle_model_fitting(subject_id="730945", 
-                           session_date="2024-10-24", 
-                           if_include_metrics=True,
-                           if_include_latent_variables=True,)
+                           #session_date="2024-10-24", 
+                           if_include_metrics=False,
+                           if_include_latent_variables=True,
+                           max_threads_for_s3=10)
 
+print(time.time() - start)
 # %%
 
 if __name__ == "__main__":
