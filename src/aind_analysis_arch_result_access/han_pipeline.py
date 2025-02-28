@@ -194,9 +194,11 @@ def get_session_table(if_load_bpod=False):
 
 
 # %%
-def get_mle_available_models(
-    subject_id: str,
-    session_date: str,
+def get_mle_model_fitting(
+    subject_id: str = None,
+    session_date: str = None,
+    agent_alias: str = None,
+    from_custom_query: dict = None,
     if_include_metrics: bool = True,
     paginate_settings: dict = {"paginate": False},
 ):
@@ -211,7 +213,8 @@ def get_mle_available_models(
     if_include_metrics : bool, optional
         Whether to include the metrics in the DataFrame, by default True
     paginate_settings : dict, optional
-        The settings for pagination, by default {"paginate": False}. 
+        The settings for pagination, by default {"paginate": False}.
+        If you see a 503 error, you may need to set paginate to True.
         See aind_data_access_api documentation.
 
     Returns
@@ -223,18 +226,28 @@ def get_mle_available_models(
     ANALYSIS_NAME = "MLE fitting"
     ANALYSIS_VER = "first version @ 0.10.0"
 
-    # Retrieve the records
+    # -- Build query --
+    filter_query = {
+        "analysis_spec.analysis_name": ANALYSIS_NAME,
+        "analysis_spec.analysis_ver": ANALYSIS_VER,
+    }
+    if from_custom_query:
+        filter_query = filter_query.update(from_custom_query)
+    else:
+        if subject_id:
+            filter_query["subject_id"] = subject_id
+        if session_date:
+            filter_query["session_date"] = session_date
+
+    # -- Retrieve records --
     logger.info(f"Retrieving MLE fitting records for {subject_id} on {session_date}...")
+    logger.info(f"Query: {filter_query}")
     records = DFT_ANALYSIS_DB.retrieve_docdb_records(
-        filter_query={
-            "subject_id": subject_id,
-            "session_date": session_date,
-            "analysis_spec.analysis_name": ANALYSIS_NAME,
-            "analysis_spec.analysis_ver": ANALYSIS_VER,
-        },
+        filter_query=filter_query,
         projection=(
             {
-                "_id": 0,
+                "_id": 1,
+                "status": 1, 
                 "nwb_name": 1,
                 "analysis_results.fit_settings.agent_alias": 1,
                 "analysis_results.log_likelihood": 1,
@@ -247,6 +260,7 @@ def get_mle_available_models(
                 "analysis_results.LPT_AIC": 1,
                 "analysis_results.LPT_BIC": 1,
                 "analysis_results.cross_validation": 1,
+                "analysis_results.params": 1,
             }
             if if_include_metrics
             else {"_id": 0, "nwb_name": 1, "analysis_results.fit_settings.agent_alias": 1}
@@ -257,9 +271,9 @@ def get_mle_available_models(
     if not records:
         logger.warning(f"No MLE fitting available for {subject_id} on {session_date}")
         return None
-
     logging.info(f"Found {len(records)} MLE fitting records!")
-    
+
+    # -- Reformat the records --
     # Turn the nested json into a flat DataFrame and rename the columns
     df = pd.json_normalize(records)
     df = df.rename(
@@ -278,43 +292,21 @@ def get_mle_available_models(
                 lambda x: np.std(x)
             )
 
-    if df.agent_alias.duplicated().any():
+    if subject_id and session_date and df.agent_alias.duplicated().any():
+        # If the user specifies one certain session, and there are 
         logger.warning(
-            "WARNING: Duplicated agent_alias!\n"
-            "         There are multiple nwbs for this session:\n"
-            f"        {df.nwb_name.unique()}"
-            "         You should check the time stamps to select the one you want."
+            "Duplicated agent_alias!\n"
+            "There are multiple nwbs for this session:\n"
+            f"{df.nwb_name.unique()}\n"
+            "You should check the time stamps to select the one you want."
         )
 
     return df
 
 
-df = get_mle_available_models("730945", "2024-10-24", if_include_metrics=True)
-print(df)
+df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24", if_include_metrics=True)
 
-# %%
-
-def get_mle_model_fitting(
-    subject_id: str = None,
-    session_date: str = None,
-    query: dict = None,
-    if_get_figures: bool = False,
-):
-    #%%
-    subject_id = "730945"
-    session_date = "2024-10-24"
-    
-    records = DFT_ANALYSIS_DB.retrieve_docdb_records(
-        filter_query={
-            "subject_id": subject_id,
-            "session_date": session_date,
-        }
-    )
-    
-    
-    #%%
-    pass
-
+#%%
 
 if __name__ == "__main__":
     df = get_session_table()
