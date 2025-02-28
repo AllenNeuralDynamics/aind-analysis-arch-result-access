@@ -212,8 +212,12 @@ def get_mle_model_fitting(
     download_path: str = "./results/mle_figures/",
     paginate_settings: dict = {"paginate": False},
     max_threads_for_s3: int = 10,
-):
-    """Get the available models for MLE fitting given the subject_id and session_date
+) -> pd.DataFrame:
+    """Get MLE fitting from the analysis pipeline
+    (https://github.com/AllenNeuralDynamics/aind-analysis-arch-pipeine-dynamic-foraging)
+
+    The method queries fitting metrics from docDB and, optionally, download the latent variables and
+    figures from s3.
 
     Parameters
     ----------
@@ -246,7 +250,7 @@ def get_mle_model_fitting(
     Returns
     -------
     DataFrame
-        A DataFrame containing the available models for MLE fitting
+        A DataFrame containing model fitting results
     """
 
     # -- Build query --
@@ -359,9 +363,7 @@ def get_mle_model_fitting(
     return df
 
 
-def build_query(
-    from_custom_query=None, subject_id=None, session_date=None, agent_alias=None
-):
+def build_query(from_custom_query=None, subject_id=None, session_date=None, agent_alias=None):
     """Build query for MLE fitting"""
     filter_query = {
         "analysis_spec.analysis_name": "MLE fitting",
