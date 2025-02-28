@@ -333,16 +333,17 @@ def get_mle_model_fitting(
             "You should check the time stamps to select the one you want."
         )
         
-    if if_include_latent_variables:
-        latent = get_latent_variable_batch(df._id, max_threads_for_s3=max_threads_for_s3)
-        df["latent_variables"] = latent
+    if if_include_latent_variables and len(df.query("status == 'success'")):
+        latents = get_latent_variable_batch(df.query("status == 'success'")._id, 
+                                           max_threads_for_s3=max_threads_for_s3)
+        df = df.merge(pd.DataFrame(latents), on="_id", how="left")
 
     return df
 
 def get_latent_variable_batch(_ids, max_threads_for_s3):
     with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
-        latents = list(executor.map(_get_latent_variable, _ids))
-    return latents
+        results = list(executor.map(_get_latent_variable, _ids))
+    return [{"_id": _id, "latent_variables": latent} for _id, latent in zip(_ids, results)]
 
 def get_latent_variable(id):
     # -- Rebuild s3 path from id (the job_hash) --
