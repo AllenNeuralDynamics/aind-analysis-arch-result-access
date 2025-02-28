@@ -12,7 +12,7 @@ from aind_analysis_arch_result_access.util.reformat import (
     data_source_mapper,
     trainer_mapper,
 )
-from aind_analysis_arch_result_access.util.s3 import get_s3_json, get_s3_pkl
+from aind_analysis_arch_result_access.util.s3 import fs, get_s3_json, get_s3_pkl
 
 from aind_analysis_arch_result_access import S3_PATH_BONSAI_ROOT, S3_PATH_BPOD_ROOT, S3_PATH_ANALYSIS_ROOT, DFT_ANALYSIS_DB
 
@@ -200,6 +200,7 @@ def get_mle_model_fitting(
     agent_alias: str = None,
     from_custom_query: dict = None,
     if_include_metrics: bool = True,
+    if_include_latent_variables: bool = True,
     paginate_settings: dict = {"paginate": False},
 ):
     """Get the available models for MLE fitting given the subject_id and session_date
@@ -219,6 +220,8 @@ def get_mle_model_fitting(
     if_include_metrics : bool, optional
         Whether to include the metrics in the DataFrame, by default True
         If False, only the agent_alias will be included.
+    if_include_latent_variables : bool, optional
+        Whether to include the latent variables in the DataFrame, by default True
     paginate_settings : dict, optional
         The settings for pagination, by default {"paginate": False}.
         If you see a 503 error, you may need to set paginate to True.
@@ -325,12 +328,61 @@ def get_mle_model_fitting(
             f"{df.nwb_name.unique()}\n"
             "You should check the time stamps to select the one you want."
         )
+        
+    if if_include_latent_variables:
+        latent = get_latent_variable_from_ids(df._id)
 
     return df
 
+def get_latent_variables_from_ids(_ids):
+    latents = []
+    for _id in _ids:
+        latents.append(_get_latent_variable(_id))
+    return latents
+
+
+def _get_latent_variable(id):
+    # -- Rebuild s3 path from id (the job_hash) --
+    path = f"{S3_PATH_ANALYSIS_ROOT}/{id}/"
+    
+    # -- Try different result json names for back compatibility --
+    possible_json_names = ["docDB_mle_fitting.json", "docDB_record.json"]
+    for json_name in possible_json_names:
+        if fs.exists(f"{path}{json_name}"):
+            break
+    else:
+        logger.warning(f"Cannot find latent variables for id {id}")
+        return None
+
+    # -- Load the json --
+    # Get the full result json from s3
+    result_json = get_s3_json(f"{path}{json_name}")
+
+    # Get the latent variables
+    latent_variable = result_json["analysis_results"]["fitted_latent_variables"]
+
+    # -- Add RPE to the latent variables --
+    # Notes: RPE = reward - q_value_chosen
+    # In the model fitting output, len(choice) = len(reward) = n_trials,
+    # but len(q_value) = n_trials + 1, because it includes a final update after the last choice.
+    # When computing RPE, we need to use the q_value before the choice on the chosen side.
+    choice = np.array(
+        result_json["analysis_results"]["fit_settings"]["fit_choice_history"]
+    ).astype(int)
+    reward = np.array(
+        result_json["analysis_results"]["fit_settings"]["fit_reward_history"]
+    ).astype(int)
+    q_value_before_choice = np.array(latent_variable["q_value"])[:, :-1]  # Note the :-1 here
+    q_value_chosen = q_value_before_choice[choice, np.arange(len(choice))]
+    latent_variable["rpe"] = reward - q_value_chosen
+    
+    return latent_variable
+    
 
 df = get_mle_model_fitting(subject_id="730945", 
-                           session_date="2024-10-24", if_include_metrics=False)
+                           session_date="2024-10-24", 
+                           if_include_metrics=False,
+                           if_include_latent_variables=True,)
 
 # %%
 
