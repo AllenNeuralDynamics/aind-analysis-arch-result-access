@@ -17,7 +17,6 @@ from aind_analysis_arch_result_access.util.s3 import get_s3_json, get_s3_pkl
 from aind_analysis_arch_result_access import S3_PATH_BONSAI_ROOT, S3_PATH_BPOD_ROOT, DFT_ANALYSIS_DB
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
 
 
@@ -193,19 +192,32 @@ def get_session_table(if_load_bpod=False):
 
     return df
 
+
 # %%
-def get_mle_available_models(subject_id: str, session_date: str):
+def get_mle_available_models(
+    subject_id: str,
+    session_date: str,
+    if_include_metrics: bool = True,
+    paginate_settings: dict = {"paginate": False},
+):
     """Get the available models for MLE fitting given the subject_id and session_date
 
     Parameters
     ----------
-    subject_id : str,
-    session_date : str,
+    subject_id : str
+        The subject_id
+    session_date : str
+        The session_date
+    if_include_metrics : bool, optional
+        Whether to include the metrics in the DataFrame, by default True
+    paginate_settings : dict, optional
+        The settings for pagination, by default {"paginate": False}. 
+        See aind_data_access_api documentation.
 
     Returns
     -------
     DataFrame
-        A DataFrame with columns: nwb_name, model_alias
+        A DataFrame containing the available models for MLE fitting
     """
 
     analysis_name = "MLE fitting"
@@ -220,25 +232,34 @@ def get_mle_available_models(subject_id: str, session_date: str):
             "analysis_spec.analysis_name": analysis_name,
             "analysis_spec.analysis_ver": analysis_ver,
         },
-        projection={"_id": 0, "nwb_name": 1,
-                    "analysis_results.fit_settings.agent_alias": 1,
-                    "analysis_results.log_likelihood": 1,
-                    "analysis_results.prediction_accuracy": 1,
-                    "analysis_results.k_model": 1,
-                    "analysis_results.n_trials": 1,
-                    "analysis_results.AIC": 1,
-                    "analysis_results.BIC": 1,
-                    "analysis_results.LPT": 1,
-                    "analysis_results.LPT_AIC": 1,
-                    "analysis_results.LPT_BIC": 1,
-                    "analysis_results.cross_validation": 1,
-                    },
+        projection=(
+            {
+                "_id": 0,
+                "nwb_name": 1,
+                "analysis_results.fit_settings.agent_alias": 1,
+                "analysis_results.log_likelihood": 1,
+                "analysis_results.prediction_accuracy": 1,
+                "analysis_results.k_model": 1,
+                "analysis_results.n_trials": 1,
+                "analysis_results.AIC": 1,
+                "analysis_results.BIC": 1,
+                "analysis_results.LPT": 1,
+                "analysis_results.LPT_AIC": 1,
+                "analysis_results.LPT_BIC": 1,
+                "analysis_results.cross_validation": 1,
+            }
+            if if_include_metrics
+            else {"_id": 0, "nwb_name": 1, "analysis_results.fit_settings.agent_alias": 1}
+        ),
+        **paginate_settings,
     )
 
     if not records:
         logger.warning(f"No MLE fitting available for {subject_id} on {session_date}")
         return None
 
+    logging.info(f"Found {len(records)} MLE fitting records!")
+    
     # Turn the nested json into a flat DataFrame and rename the columns
     df = pd.json_normalize(records)
     df = df.rename(
@@ -247,14 +268,15 @@ def get_mle_available_models(subject_id: str, session_date: str):
         }
     )
 
-    # Compute cross_validation mean and std
-    for group in ["test", "fit", "test_bias_only"]:
-        df[f"prediction_accuracy_10-CV_{group}"] = df[f"prediction_accuracy_{group}"].apply(
-            lambda x: np.mean(x)
-        )
-        df[f"prediction_accuracy_10-CV_{group}_std"] = df[f"prediction_accuracy_{group}"].apply(
-            lambda x: np.std(x)
-        )
+    if if_include_metrics:
+        # Compute cross_validation mean and std
+        for group in ["test", "fit", "test_bias_only"]:
+            df[f"prediction_accuracy_10-CV_{group}"] = df[f"prediction_accuracy_{group}"].apply(
+                lambda x: np.mean(x)
+            )
+            df[f"prediction_accuracy_10-CV_{group}_std"] = df[f"prediction_accuracy_{group}"].apply(
+                lambda x: np.std(x)
+            )
 
     if df.agent_alias.duplicated().any():
         logger.warning(
@@ -266,7 +288,8 @@ def get_mle_available_models(subject_id: str, session_date: str):
 
     return df
 
-df = get_mle_available_models("730945", "2024-10-24")
+
+df = get_mle_available_models("730945", "2024-10-24", if_include_metrics=True)
 print(df)
 
 # %%
