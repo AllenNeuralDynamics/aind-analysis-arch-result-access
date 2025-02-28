@@ -21,7 +21,7 @@ dependencies = [
     's3fs',
     'pandas',
     'numpy',
-    'aind_data_access_api',
+    'aind-data-access-api[docdb]',
 ]
 
 [project.optional-dependencies]
