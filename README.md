@@ -4,7 +4,7 @@
 ![Code Style](https://img.shields.io/badge/code%20style-black-black)
 [![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 ![Interrogate](https://img.shields.io/badge/interrogate-100.0%25-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen?logo=codecov)
+![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen?logo=codecov)
 ![Python](https://img.shields.io/badge/python->=3.9-blue?logo=python)
 
 
@@ -29,8 +29,126 @@ df = get_session_table(if_load_bpod=False)  # `if_load_bpod=True` will load addi
 #### Fetch trial table (🚧 under development)
 #### Fetch analysis figures (🚧 under development)
 ### Access pipeline v2.0 (AIND analysis architecture)
-#### Fetch foraging model fitting results (🚧 under development)
-#### Fetch foraging model figures (🚧 under development)
+#### Fetch dynamic foraging model fitting results
+- Get all fitting results from one session
+
+    ```python
+    from aind_analysis_arch_result_access.han_pipeline import get_mle_model_fitting
+    df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24")
+
+    print(df.columns)
+    print(df[["agent_alias", "AIC", "prediction_accuracy_10-CV_test"]])
+    ```
+    output
+    ```
+    Query: {'analysis_spec.analysis_name': 'MLE fitting', 'analysis_spec.analysis_ver': 'first version @ 0.10.0', 'subject_id': '730945', 'session_date': '2024-10-24'}
+    Found 5 MLE fitting records!
+    Found 5 successful MLE fitting!
+    Get latent variables from s3: 100%|██████████| 5/5 [00:00<00:00, 58.01it/s]
+
+    Index(['_id', 'nwb_name', 'status', 'agent_alias', 'log_likelihood', 'AIC',
+          'BIC', 'LPT', 'LPT_AIC', 'LPT_BIC', 'k_model', 'n_trials',
+          'prediction_accuracy', 'prediction_accuracy_test',
+          'prediction_accuracy_fit', 'prediction_accuracy_test_bias_only',
+          'params', 'prediction_accuracy_10-CV_test',
+          'prediction_accuracy_10-CV_test_std', 'prediction_accuracy_10-CV_fit',
+          'prediction_accuracy_10-CV_fit_std',
+          'prediction_accuracy_10-CV_test_bias_only',
+          'prediction_accuracy_10-CV_test_bias_only_std', 'latent_variables'],
+          dtype='object')
+
+                      agent_alias          AIC  prediction_accuracy_10-CV_test
+    0  QLearning_L1F1_CK1_softmax   239.519051                        0.898151
+    1         QLearning_L1F0_epsi   403.621460                        0.762075
+    2  QLearning_L2F1_CK1_softmax   236.265381                        0.903280
+    3                        WSLS  4051.958064                        0.636196
+    4      QLearning_L2F1_softmax   236.512476                        0.888611
+    ```
+    Now the latent variables also contain the `rpe`.
+    ```python
+    df.latent_variables.iloc[0].keys()
+    ```
+    output
+    ```
+    dict_keys(['q_value', 'choice_kernel', 'choice_prob', 'rpe'])
+    ```
+
+-  Also download figures
+    ```python
+    df = get_mle_model_fitting(
+        subject_id="730945",
+        session_date="2024-10-24",
+        if_download_figures=True,
+        download_path="./mle_figures",
+    )
+    !ls ./mle_figures
+    ```
+    output
+    ```
+    Query: {'analysis_spec.analysis_name': 'MLE fitting', 'analysis_spec.analysis_ver': 'first version @ 0.10.0', 'subject_id': '730945', 'session_date': '2024-10-24'}
+    Found 5 MLE fitting records!
+    Found 5 successful MLE fitting!
+    Get latent variables from s3: 100%|██████████| 5/5 [00:00<00:00, 85.87it/s]
+    Download figures from s3: 100%|██████████| 5/5 [00:00<00:00, 86.45it/s]
+
+    730945_2024-10-24_17-38-06_QLearning_L1F0_epsi_58cc5b6f6e.png
+    730945_2024-10-24_17-38-06_QLearning_L1F1_CK1_softmax_3ffdf98012.png
+    730945_2024-10-24_17-38-06_QLearning_L2F1_CK1_softmax_5ce7f1f816.png
+    730945_2024-10-24_17-38-06_QLearning_L2F1_softmax_ec59be40c0.png
+    730945_2024-10-24_17-38-06_WSLS_7c61d01e0f.png
+    ```
+    Example figure:
+
+    <img width="1153" alt="image" src="https://github.com/user-attachments/assets/84ebd7d3-ac49-4b8f-a0a6-41cced555437" />
+
+
+- Get fittings from all sessions of a mouse for a specific model
+    ```python
+    df = get_mle_model_fitting(
+        subject_id="730945",
+        agent_alias="QLearning_L2F1_CK1_softmax",
+        if_download_figures=False,
+    )
+    print(df.iloc[:10][["nwb_name", "agent_alias"]])
+    ```
+    output
+    ```
+    Query: {'analysis_spec.analysis_name': 'MLE fitting', 'analysis_spec.analysis_ver': 'first version @ 0.10.0', 'subject_id': '730945', 'analysis_results.fit_settings.agent_alias': 'QLearning_L2F1_CK1_softmax'}
+    Found 32 MLE fitting records!
+    Found 32 successful MLE fitting!
+    Get latent variables from s3: 100%|██████████| 32/32 [00:00<00:00, 80.81it/s]
+
+                            nwb_name                 agent_alias
+    0  730945_2024-08-27_16-07-16.nwb  QLearning_L2F1_CK1_softmax
+    1  730945_2024-09-05_16-47-58.nwb  QLearning_L2F1_CK1_softmax
+    2  730945_2024-10-23_15-33-07.nwb  QLearning_L2F1_CK1_softmax
+    3  730945_2024-09-19_17-26-54.nwb  QLearning_L2F1_CK1_softmax
+    4  730945_2024-09-04_16-04-38.nwb  QLearning_L2F1_CK1_softmax
+    5  730945_2024-08-30_15-55-05.nwb  QLearning_L2F1_CK1_softmax
+    6  730945_2024-08-29_15-50-57.nwb  QLearning_L2F1_CK1_softmax
+    7  730945_2024-10-24_17-38-06.nwb  QLearning_L2F1_CK1_softmax
+    8  730945_2024-09-12_17-21-58.nwb  QLearning_L2F1_CK1_softmax
+    9  730945_2024-09-03_15-49-53.nwb  QLearning_L2F1_CK1_softmax
+    ```
+
+- (for advanced users) Use your own docDB query
+    ```python
+    df = get_mle_model_fitting(
+        from_custom_query={
+            "analysis_results.fit_settings.agent_alias": "QLearning_L2F1_CK1_softmax",
+            "analysis_results.n_trials" : {"$gt": 600},
+        },
+        if_include_latent_variables=False,
+        if_download_figures=False,
+    )
+    ```
+    output
+    ```
+    Query: {'analysis_spec.analysis_name': 'MLE fitting', 'analysis_spec.analysis_ver': 'first version @ 0.10.0', 'analysis_results.fit_settings.agent_alias': 'QLearning_L2F1_CK1_softmax', 'analysis_results.n_trials': {'$gt': 600}}
+    Found 807 MLE fitting records!
+    Found 807 successful MLE fitting!
+    ```
+
 
 ## Contributing
 
