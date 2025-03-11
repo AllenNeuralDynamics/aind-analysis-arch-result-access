@@ -261,6 +261,8 @@ def get_mle_model_fitting(
         "nwb_name": 1,
         "analysis_results.fit_settings.agent_alias": 1,
         "status": 1,
+        "subject_id": 1,
+        "session_date": 1,
     }
     if if_include_metrics:
         projection.update(
