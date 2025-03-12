@@ -100,3 +100,20 @@ def split_nwb_name(nwb_name):
         nwb_suffix = 0
 
     return subject_id, session_date, nwb_suffix
+
+def curriculum_ver_mapper(ver):
+    """Manually group curriculum versions:
+        ver < 2.0 --> v1
+        2.0 <= ver < 2.3 --> v2
+        ver >=2.3 --> v3
+        
+    See discussion here: https://hanhou.notion.site/notes-on-motivation
+    """
+    if type(ver) != str:
+        return None
+    if "2.3" in ver:
+        return "v3"
+    elif "1.0" in ver:
+        return "v1"
+    else:
+        return "v2"

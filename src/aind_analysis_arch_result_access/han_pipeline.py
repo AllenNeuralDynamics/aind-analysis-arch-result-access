@@ -16,6 +16,7 @@ from aind_analysis_arch_result_access import (
 from aind_analysis_arch_result_access.util.reformat import (
     data_source_mapper,
     trainer_mapper,
+    curriculum_ver_mapper,
 )
 from aind_analysis_arch_result_access.util.s3 import (
     get_s3_json,
@@ -161,6 +162,9 @@ def get_session_table(if_load_bpod=False):
     df["water_after_session_last_session"] = df.groupby("subject_id")["water_after_session"].shift(
         1
     )
+    
+    # curriculum version group
+    df["curriculum_version_group"] = df["curriculum_version"].map(curriculum_ver_mapper)
 
     # fill nan for autotrain fields
     filled_values = {
