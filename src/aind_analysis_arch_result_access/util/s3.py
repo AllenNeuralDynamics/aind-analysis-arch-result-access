@@ -157,3 +157,46 @@ def get_s3_logistic_regression_betas_batch(
         )
     return pd.concat(results).reset_index()
 
+
+def get_s3_logistic_regression_figure(subject_id, session_date, nwb_suffix, model, download_path):
+    """Download logistic regression figure from s3 for a single session"""
+    f_name = f"{_build_nwb_name(subject_id, session_date, nwb_suffix)}_logistic_regression_{model}.png"
+    fig_full_path = (
+        f"{S3_PATH_BONSAI_ROOT}/{_build_nwb_name(subject_id, session_date, nwb_suffix)}/{f_name}"
+    )
+
+    if fs.exists(fig_full_path):
+        fs.download(fig_full_path, f"{download_path}/{f_name}")
+        return True
+    else:
+        logger.warning(
+            f"Cannot find logistic regression figure at {fig_full_path}"
+        )
+        return False
+
+
+def get_s3_logistic_regression_figure_batch(
+    subject_ids,
+    session_dates,
+    nwb_suffixs,
+    model,
+    download_path="./results/logistic_regression_figures/",
+    max_threads_for_s3=10,
+):
+    """Download logistic regression figures from s3 for a batch of sessions"""
+    os.makedirs(download_path, exist_ok=True)
+    with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
+        list(
+            tqdm(
+                executor.map(
+                    get_s3_logistic_regression_figure,
+                    subject_ids,
+                    session_dates,
+                    nwb_suffixs,
+                    [model] * len(subject_ids),
+                    [download_path] * len(subject_ids),
+                ),
+                total=len(subject_ids),
+                desc=f"Download logistic regression figures from s3 to {download_path}",
+            )
+        )
