@@ -14,6 +14,7 @@ from aind_analysis_arch_result_access import (
     analysis_docDB_dft,
 )
 from aind_analysis_arch_result_access.util.reformat import (
+    curriculum_ver_mapper,
     data_source_mapper,
     trainer_mapper,
 )
@@ -162,6 +163,9 @@ def get_session_table(if_load_bpod=False):
         1
     )
 
+    # curriculum version group
+    df["curriculum_version_group"] = df["curriculum_version"].map(curriculum_ver_mapper)
+
     # fill nan for autotrain fields
     filled_values = {
         "curriculum_name": "None",
@@ -261,6 +265,8 @@ def get_mle_model_fitting(
         "nwb_name": 1,
         "analysis_results.fit_settings.agent_alias": 1,
         "status": 1,
+        "subject_id": 1,
+        "session_date": 1,
     }
     if if_include_metrics:
         projection.update(
