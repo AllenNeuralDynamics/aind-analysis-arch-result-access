@@ -9,10 +9,11 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 
 import numpy as np
+import pandas as pd
 import s3fs
 from tqdm import tqdm
 
-from aind_analysis_arch_result_access import S3_PATH_ANALYSIS_ROOT
+from aind_analysis_arch_result_access import S3_PATH_ANALYSIS_ROOT, S3_PATH_BONSAI_ROOT
 
 # The processed bucket is public
 fs = s3fs.S3FileSystem(anon=True)
@@ -119,3 +120,40 @@ def get_s3_mle_figure(id, f_name, download_path):
 
     if fs.exists(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}"):
         fs.download(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}", f"{download_path}/{f_name}")
+
+
+def _build_nwb_name(subject_id, session_date, nwb_suffix):
+    """Recover string like 676746_2023-10-06 or 684039_2023-10-25_114737"""
+    return subject_id + "_" + session_date + (f"_{nwb_suffix}" if nwb_suffix > 0 else "")
+
+
+def get_s3_logistic_regression_betas(subject_id, session_date, nwb_suffix, model):
+    """Download df_logistic_betas from s3 for a single session"""
+    df_logistic = get_s3_pkl(
+        f"{S3_PATH_BONSAI_ROOT}/{_build_nwb_name(subject_id, session_date, nwb_suffix)}/"
+        f"{_build_nwb_name(subject_id, session_date, nwb_suffix)}"
+        f"_df_session_logistic_regression_df_beta_{model}.pkl"
+    )
+    return df_logistic
+
+
+def get_s3_logistic_regression_betas_batch(
+    subject_ids, session_dates, nwb_suffixs, model, max_threads_for_s3=10
+):
+    """Get df_logistic_betas from s3 for a batch of sessions"""
+    with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
+        results = list(
+            tqdm(
+                executor.map(
+                    get_s3_logistic_regression_betas,
+                    subject_ids,
+                    session_dates,
+                    nwb_suffixs,
+                    [model] * len(subject_ids),  # Repeat the model for each subject
+                ),
+                total=len(subject_ids),
+                desc="Get logistic regression betas from s3",
+            )
+        )
+    return pd.concat(results).reset_index()
+
