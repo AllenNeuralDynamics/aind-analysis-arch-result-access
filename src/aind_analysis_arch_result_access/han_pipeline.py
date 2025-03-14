@@ -447,14 +447,19 @@ def get_logistic_regression(
         on=["subject_id", "session_date"],
         how="left",
     )
-    
+
     # -- Get results --
+    sessions_in_han_pipeline = df_to_query["nwb_suffix"].notnull()
     df_betas = get_s3_logistic_regression_betas_batch(
-        subject_ids=df_to_query.subject_id,
-        session_dates=df_to_query.session_date,
-        nwb_suffixs=df_to_query.nwb_suffix,
+        subject_ids=df_to_query.loc[sessions_in_han_pipeline, "subject_id"],
+        session_dates=df_to_query.loc[sessions_in_han_pipeline, "session_date"],
+        nwb_suffixs=df_to_query.loc[sessions_in_han_pipeline, "nwb_suffix"].astype(int),
         model=model,
         max_threads_for_s3=max_threads_for_s3,
+    )
+
+    logger.info(
+        f"Found logistic regression betas from {len(df_betas)} / {len(df_to_query)} sessions."
     )
 
     return df_betas

@@ -26,7 +26,7 @@ def get_s3_pkl(s3_path):
     """
     if not fs.exists(s3_path):
         logger.warning(f"Cannot find file at {s3_path}")
-        return None
+        return pd.DataFrame()  # Return an empty DataFrame if the file does not exist
     with fs.open(s3_path, "rb") as f:
         df_loaded = pickle.load(f)
     return df_loaded
@@ -155,6 +155,10 @@ def get_s3_logistic_regression_betas_batch(
                 desc="Get logistic regression betas from s3",
             )
         )
+    
+    if not results:
+        logger.warning("No results found for the provided subject_ids and session_dates.")
+        return pd.DataFrame()
     return pd.concat(results).reset_index()
 
 
