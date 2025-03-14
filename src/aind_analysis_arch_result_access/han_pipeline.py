@@ -458,10 +458,14 @@ def get_logistic_regression(
         max_threads_for_s3=max_threads_for_s3,
     )
 
-    print(
+    logger.info(
         f"Successfully retrieved logistic regression betas from"
         f" {len(df_logistic_regression)} / {len(df_to_query)} sessions."
     )
+    
+    if len(df_to_query) > len(df_logistic_regression):
+        logger.warning(f"Sessions that are missing in han's pipeline: ")
+        logger.warning(df_to_query.loc[~sessions_in_han_pipeline].to_string(index=False))
 
     # -- Merge in fitting metrics (from df_session itself) --
     metrics_columns = [col for col in df_master if model in col and "abs" not in col]
@@ -478,6 +482,17 @@ def get_logistic_regression(
         on=["subject_id", "session_date"],
         how="left",
     )
+        
+    # -- Download figures --
+    if if_download_figures:
+        get_s3_logistic_regression_figure_batch(
+            subject_ids=df_to_query.loc[sessions_in_han_pipeline, "subject_id"],
+            session_dates=df_to_query.loc[sessions_in_han_pipeline, "session_date"],
+            nwb_suffixs=df_to_query.loc[sessions_in_han_pipeline, "nwb_suffix"].astype(int),
+            model=model,
+            download_path=download_path,
+            max_threads_for_s3=max_threads_for_s3,
+        )
 
     return df_logistic_regression
 
