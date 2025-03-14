@@ -220,7 +220,7 @@ def get_mle_model_fitting(
     paginate_settings: dict = {"paginate": False},
     max_threads_for_s3: int = 10,
 ) -> pd.DataFrame:
-    """Get MLE fitting from the analysis pipeline
+    """Get MLE fitting from Han's analysis pipeline (the newer one with docDB)
     (https://github.com/AllenNeuralDynamics/aind-analysis-arch-pipeine-dynamic-foraging)
 
     The method queries fitting metrics from docDB and, optionally, download the latent variables and
@@ -409,11 +409,12 @@ def get_logistic_regression(
     download_path: str = "./results/logistic_regression/",
     max_threads_for_s3: int = 10,
 ) -> pd.DataFrame:
-    """Get logistic regression betas from the analysis pipeline
+    """Get logistic regression betas from Han's analysis pipeline (the old one with pure s3)
+    https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pipeline
 
     Parameters
     ----------
-    sessions : pd.DataFrame
+    df_sessions : pd.DataFrame
         A DataFrame containing at least subject_id and session_date columns
     model : Literal["Su2022", "Bari2019", "Miller2021", "Hattori2019"]
         The model to use for logistic regression. See notes here:
