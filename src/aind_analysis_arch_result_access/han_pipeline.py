@@ -466,9 +466,12 @@ def get_logistic_regression(
         f" {len(df_logistic_regression)} / {len(df_to_query)} sessions."
     )
 
-    if len(df_to_query) > len(df_logistic_regression):
+    if len(df_logistic_regression) < len(df_to_query):
         logger.warning(f"Sessions that are missing in han's pipeline: ")
         logger.warning(df_to_query.loc[~sessions_in_han_pipeline].to_string(index=False))
+        
+    if len(df_logistic_regression) == 0:
+        return pd.DataFrame() 
 
     # -- Merge in fitting metrics (from df_session itself) --
     metrics_columns = [col for col in df_master if model in col and "abs" not in col]
