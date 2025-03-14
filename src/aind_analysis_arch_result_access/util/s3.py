@@ -3,24 +3,34 @@ Util functions for public S3 bucket access
 """
 
 import json
+import logging
 import os
 import pickle
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
+import pandas as pd
 import s3fs
 from tqdm import tqdm
 
-from aind_analysis_arch_result_access import S3_PATH_ANALYSIS_ROOT
+from aind_analysis_arch_result_access import (
+    S3_PATH_ANALYSIS_ROOT,
+    S3_PATH_BONSAI_ROOT,
+)
 
 # The processed bucket is public
 fs = s3fs.S3FileSystem(anon=True)
+
+logger = logging.getLogger(__name__)
 
 
 def get_s3_pkl(s3_path):
     """
     Load a pickled dataframe from an s3 path
     """
+    if not fs.exists(s3_path):
+        logger.warning(f"Cannot find file at {s3_path}")
+        return pd.DataFrame()  # Return an empty DataFrame if the file does not exist
     with fs.open(s3_path, "rb") as f:
         df_loaded = pickle.load(f)
     return df_loaded
@@ -30,6 +40,9 @@ def get_s3_json(s3_path):
     """
     Load a json file from an s3 path
     """
+    if not fs.exists(s3_path):
+        logger.warning(f"Cannot find file at {s3_path}")
+        return None
     with fs.open(s3_path) as f:
         json_loaded = json.load(f)
     return json_loaded
@@ -110,4 +123,91 @@ def get_s3_mle_figure(id, f_name, download_path):
     file_name_on_s3 = "fitted_session.png"
 
     if fs.exists(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}"):
-        fs.download(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}", f"{download_path}/{f_name}")
+        fs.download(
+            f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}",
+            f"{download_path}/{f_name}",
+        )
+
+
+def _build_nwb_name(subject_id, session_date, nwb_suffix):
+    """Recover string like 676746_2023-10-06 or 684039_2023-10-25_114737"""
+    return subject_id + "_" + session_date + (f"_{nwb_suffix}" if nwb_suffix > 0 else "")
+
+
+def get_s3_logistic_regression_betas(subject_id, session_date, nwb_suffix, model):
+    """Download df_logistic_betas from s3 for a single session"""
+    df_logistic = get_s3_pkl(
+        f"{S3_PATH_BONSAI_ROOT}/{_build_nwb_name(subject_id, session_date, nwb_suffix)}/"
+        f"{_build_nwb_name(subject_id, session_date, nwb_suffix)}"
+        f"_df_session_logistic_regression_df_beta_{model}.pkl"
+    )
+    return df_logistic
+
+
+def get_s3_logistic_regression_betas_batch(
+    subject_ids, session_dates, nwb_suffixs, model, max_threads_for_s3=10
+):
+    """Get df_logistic_betas from s3 for a batch of sessions"""
+    with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
+        results = list(
+            tqdm(
+                executor.map(
+                    get_s3_logistic_regression_betas,
+                    subject_ids,
+                    session_dates,
+                    nwb_suffixs,
+                    [model] * len(subject_ids),  # Repeat the model for each subject
+                ),
+                total=len(subject_ids),
+                desc="Get logistic regression betas from s3",
+            )
+        )
+
+    if not results:
+        logger.warning("No results found for the provided subject_ids and session_dates.")
+        return pd.DataFrame()
+    return pd.concat(results).reset_index()
+
+
+def get_s3_logistic_regression_figure(subject_id, session_date, nwb_suffix, model, download_path):
+    """Download logistic regression figure from s3 for a single session"""
+    f_name = (
+        f"{_build_nwb_name(subject_id, session_date, nwb_suffix)}_logistic_regression_{model}.png"
+    )
+    fig_full_path = (
+        f"{S3_PATH_BONSAI_ROOT}/{_build_nwb_name(subject_id, session_date, nwb_suffix)}/{f_name}"
+    )
+
+    if fs.exists(fig_full_path):
+        fs.download(fig_full_path, f"{download_path}/{f_name}")
+        return True
+    else:
+        logger.warning(f"Cannot find logistic regression figure at {fig_full_path}")
+        return False
+
+
+def get_s3_logistic_regression_figure_batch(
+    subject_ids,
+    session_dates,
+    nwb_suffixs,
+    model,
+    download_path="./results/logistic_regression_figures/",
+    max_threads_for_s3=10,
+):
+    """Download logistic regression figures from s3 for a batch of sessions"""
+    os.makedirs(download_path, exist_ok=True)
+    with ThreadPoolExecutor(max_workers=max_threads_for_s3) as executor:
+        list(
+            tqdm(
+                executor.map(
+                    get_s3_logistic_regression_figure,
+                    subject_ids,
+                    session_dates,
+                    nwb_suffixs,
+                    [model] * len(subject_ids),
+                    [download_path] * len(subject_ids),
+                ),
+                total=len(subject_ids),
+                desc=f"Download logistic regression figures from s3 to {download_path}",
+            )
+        )

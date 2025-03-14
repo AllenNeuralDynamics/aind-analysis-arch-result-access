@@ -4,6 +4,7 @@ https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pip
 """
 
 import logging
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -21,6 +22,8 @@ from aind_analysis_arch_result_access.util.reformat import (
 from aind_analysis_arch_result_access.util.s3 import (
     get_s3_json,
     get_s3_latent_variable_batch,
+    get_s3_logistic_regression_betas_batch,
+    get_s3_logistic_regression_figure_batch,
     get_s3_mle_figure_batch,
     get_s3_pkl,
 )
@@ -217,7 +220,7 @@ def get_mle_model_fitting(
     paginate_settings: dict = {"paginate": False},
     max_threads_for_s3: int = 10,
 ) -> pd.DataFrame:
-    """Get MLE fitting from the analysis pipeline
+    """Get MLE fitting from Han's analysis pipeline (the newer one with docDB)
     (https://github.com/AllenNeuralDynamics/aind-analysis-arch-pipeine-dynamic-foraging)
 
     The method queries fitting metrics from docDB and, optionally, download the latent variables and
@@ -397,6 +400,102 @@ def build_query(from_custom_query=None, subject_id=None, session_date=None, agen
     # Update filter_query only with non-None values
     filter_query.update({k: v for k, v in standard_query.items() if v is not None})
     return filter_query
+
+
+def get_logistic_regression(
+    df_sessions: pd.DataFrame,
+    model: Literal["Su2022", "Bari2019", "Miller2021", "Hattori2019"],
+    if_download_figures: bool = False,
+    download_path: str = "./results/logistic_regression/",
+    max_threads_for_s3: int = 10,
+) -> pd.DataFrame:
+    """Get logistic regression betas from Han's analysis pipeline (the old one with pure s3)
+    https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pipeline
+
+    Parameters
+    ----------
+    df_sessions : pd.DataFrame
+        A DataFrame containing at least subject_id and session_date columns
+    model : Literal["Su2022", "Bari2019", "Miller2021", "Hattori2019"]
+        The model to use for logistic regression. See notes here:
+        https://github.com/AllenNeuralDynamics/aind-dynamic-foraging-models?tab=readme-ov-file#logistic-regression  # noqa: E501
+    if_download_figures : bool, optional
+        Whether to download the figures from s3, by default False
+    download_path : str, optional
+        The path to download the figures, by default "./results/logistic_regression/"
+    max_threads_for_s3 : int, optional
+        The maximum number of parallel threads for getting result from s3, by default 10
+    """
+
+    # -- Input validation --
+    if set(["subject_id", "session_date"]).issubset(df_sessions.columns) is False:
+        raise ValueError("df_sessions must contain subject_id and session_date columns.")
+    if model not in ["Su2022", "Bari2019", "Miller2021", "Hattori2019"]:
+        raise ValueError(
+            "Model must be one of ['Su2022', 'Bari2019', 'Miller2021', 'Hattori2019']."
+        )
+
+    # -- Use get nwb_suffix from df_master (the master session table shown on Streamlit) --
+    df_master = get_session_table(if_load_bpod=False)
+    df_master["session_date"] = df_master["session_date"].astype(str)
+
+    df_to_query = df_sessions[["subject_id", "session_date"]].copy()
+    df_to_query["session_date"] = df_to_query["session_date"].astype(str)
+    df_to_query = df_to_query.merge(
+        df_master[["subject_id", "session_date", "nwb_suffix"]],
+        on=["subject_id", "session_date"],
+        how="left",
+    )
+
+    # -- Get betas --
+    sessions_in_han_pipeline = df_to_query["nwb_suffix"].notnull()
+    download_setting = dict(
+        subject_ids=df_to_query.loc[sessions_in_han_pipeline, "subject_id"],
+        session_dates=df_to_query.loc[sessions_in_han_pipeline, "session_date"],
+        nwb_suffixs=df_to_query.loc[sessions_in_han_pipeline, "nwb_suffix"].astype(int),
+        model=model,
+        max_threads_for_s3=max_threads_for_s3,
+    )
+    df_logistic_regression = get_s3_logistic_regression_betas_batch(
+        **download_setting,
+    )
+
+    logger.info(
+        f"Successfully retrieved logistic regression betas from"
+        f" {len(df_logistic_regression)} / {len(df_to_query)} sessions."
+    )
+
+    if len(df_logistic_regression) < len(df_to_query):
+        logger.warning("Sessions that are missing in han's pipeline: ")
+        logger.warning(df_to_query.loc[~sessions_in_han_pipeline].to_string(index=False))
+
+    if len(df_logistic_regression) == 0:
+        return pd.DataFrame()
+
+    # -- Merge in fitting metrics (from df_session itself) --
+    metrics_columns = [col for col in df_master if model in col and "abs" not in col]
+    df_fitting_metrics = df_master[["subject_id", "session_date"] + metrics_columns].set_index(
+        ["subject_id", "session_date"]
+    )
+    df_fitting_metrics.columns = pd.MultiIndex.from_product(
+        [df_fitting_metrics.columns, [None]],
+        names=["analysis_spec", "analysis_results"],
+    )
+
+    df_logistic_regression = df_logistic_regression.merge(
+        df_fitting_metrics,
+        on=["subject_id", "session_date"],
+        how="left",
+    )
+
+    # -- Download figures --
+    if if_download_figures:
+        get_s3_logistic_regression_figure_batch(
+            **download_setting,
+            download_path=download_path,
+        )
+
+    return df_logistic_regression
 
 
 if __name__ == "__main__":

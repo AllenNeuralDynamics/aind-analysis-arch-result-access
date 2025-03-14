@@ -13,7 +13,9 @@ dev_db_client = MetadataDbClient(
 
 # New collection
 prod_db_client = MetadataDbClient(
-    host="api.allenneuraldynamics.org", database="analysis", collection="dynamic-foraging-analysis"
+    host="api.allenneuraldynamics.org",
+    database="analysis",
+    collection="dynamic-foraging-analysis",
 )
 
 
