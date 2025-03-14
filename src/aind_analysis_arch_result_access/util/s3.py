@@ -3,22 +3,26 @@ Util functions for public S3 bucket access
 """
 
 import json
+import logging
 import os
 import pickle
 from concurrent.futures import ThreadPoolExecutor
-import logging
 
 import numpy as np
 import pandas as pd
 import s3fs
 from tqdm import tqdm
 
-from aind_analysis_arch_result_access import S3_PATH_ANALYSIS_ROOT, S3_PATH_BONSAI_ROOT
+from aind_analysis_arch_result_access import (
+    S3_PATH_ANALYSIS_ROOT,
+    S3_PATH_BONSAI_ROOT,
+)
 
 # The processed bucket is public
 fs = s3fs.S3FileSystem(anon=True)
 
 logger = logging.getLogger(__name__)
+
 
 def get_s3_pkl(s3_path):
     """
@@ -119,7 +123,10 @@ def get_s3_mle_figure(id, f_name, download_path):
     file_name_on_s3 = "fitted_session.png"
 
     if fs.exists(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}"):
-        fs.download(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}", f"{download_path}/{f_name}")
+        fs.download(
+            f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}",
+            f"{download_path}/{f_name}",
+        )
 
 
 def _build_nwb_name(subject_id, session_date, nwb_suffix):
@@ -155,7 +162,7 @@ def get_s3_logistic_regression_betas_batch(
                 desc="Get logistic regression betas from s3",
             )
         )
-    
+
     if not results:
         logger.warning("No results found for the provided subject_ids and session_dates.")
         return pd.DataFrame()
@@ -164,7 +171,9 @@ def get_s3_logistic_regression_betas_batch(
 
 def get_s3_logistic_regression_figure(subject_id, session_date, nwb_suffix, model, download_path):
     """Download logistic regression figure from s3 for a single session"""
-    f_name = f"{_build_nwb_name(subject_id, session_date, nwb_suffix)}_logistic_regression_{model}.png"
+    f_name = (
+        f"{_build_nwb_name(subject_id, session_date, nwb_suffix)}_logistic_regression_{model}.png"
+    )
     fig_full_path = (
         f"{S3_PATH_BONSAI_ROOT}/{_build_nwb_name(subject_id, session_date, nwb_suffix)}/{f_name}"
     )
@@ -173,9 +182,7 @@ def get_s3_logistic_regression_figure(subject_id, session_date, nwb_suffix, mode
         fs.download(fig_full_path, f"{download_path}/{f_name}")
         return True
     else:
-        logger.warning(
-            f"Cannot find logistic regression figure at {fig_full_path}"
-        )
+        logger.warning(f"Cannot find logistic regression figure at {fig_full_path}")
         return False
 
 

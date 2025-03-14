@@ -5,9 +5,9 @@ import unittest
 import pandas as pd
 
 from aind_analysis_arch_result_access.han_pipeline import (
+    get_logistic_regression,
     get_mle_model_fitting,
     get_session_table,
-    get_logistic_regression,
 )
 
 
@@ -68,8 +68,7 @@ class TestGetLogisticRegression(unittest.TestCase):
         )
         self.assertEqual(len(df), 1)
         print(df.head())
-        
-        
+
     def test_get_logistic_regression_all_invalid(self):
         """Test get logistic regression results where all session ids are invalid."""
 
@@ -86,7 +85,7 @@ class TestGetLogisticRegression(unittest.TestCase):
             if_download_figures=False,
         )
         self.assertEqual(len(df), 0)
-        
+
     def test_invalid_model(self):
         """Test get logistic regression results with an invalid model."""
 
@@ -98,7 +97,7 @@ class TestGetLogisticRegression(unittest.TestCase):
             }
         )
         with self.assertRaises(ValueError):
-            df = get_logistic_regression(
+            get_logistic_regression(
                 df_sessions=df_sessions,
                 model="invalid_model",
                 if_download_figures=False,

@@ -4,7 +4,7 @@ https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pip
 """
 
 import logging
-from typing import Union, List, Literal
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -21,11 +21,11 @@ from aind_analysis_arch_result_access.util.reformat import (
 )
 from aind_analysis_arch_result_access.util.s3 import (
     get_s3_json,
-    get_s3_pkl,
     get_s3_latent_variable_batch,
-    get_s3_mle_figure_batch,
     get_s3_logistic_regression_betas_batch,
-    get_s3_logistic_regression_figure_batch
+    get_s3_logistic_regression_figure_batch,
+    get_s3_mle_figure_batch,
+    get_s3_pkl,
 )
 
 logger = logging.getLogger(__name__)
@@ -410,7 +410,7 @@ def get_logistic_regression(
     max_threads_for_s3: int = 10,
 ) -> pd.DataFrame:
     """Get logistic regression betas from the analysis pipeline
-    
+
     Parameters
     ----------
     sessions : pd.DataFrame
@@ -423,17 +423,15 @@ def get_logistic_regression(
     download_path : str, optional
         The path to download the figures, by default "./results/logistic_regression/"
     max_threads_for_s3 : int, optional
-        The maximum number of parallel threads for getting result from s3, by default 10        
+        The maximum number of parallel threads for getting result from s3, by default 10
     """
 
     # -- Input validation --
     if set(["subject_id", "session_date"]).issubset(df_sessions.columns) is False:
-        raise ValueError(
-            "df_sessions must contain subject_id and session_date columns."
-        )
+        raise ValueError("df_sessions must contain subject_id and session_date columns.")
     if model not in ["Su2022", "Bari2019", "Miller2021", "Hattori2019"]:
         raise ValueError(
-            f"model must be one of ['Su2022', 'Bari2019', 'Miller2021', 'Hattori2019'], not {model}."
+            "Model must be one of ['Su2022', 'Bari2019', 'Miller2021', 'Hattori2019']."
         )
 
     # -- Use get nwb_suffix from df_master (the master session table shown on Streamlit) --
@@ -467,11 +465,11 @@ def get_logistic_regression(
     )
 
     if len(df_logistic_regression) < len(df_to_query):
-        logger.warning(f"Sessions that are missing in han's pipeline: ")
+        logger.warning("Sessions that are missing in han's pipeline: ")
         logger.warning(df_to_query.loc[~sessions_in_han_pipeline].to_string(index=False))
-        
+
     if len(df_logistic_regression) == 0:
-        return pd.DataFrame() 
+        return pd.DataFrame()
 
     # -- Merge in fitting metrics (from df_session itself) --
     metrics_columns = [col for col in df_master if model in col and "abs" not in col]
