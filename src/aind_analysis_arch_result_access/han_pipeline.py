@@ -450,19 +450,22 @@ def get_logistic_regression(
 
     # -- Get betas --
     sessions_in_han_pipeline = df_to_query["nwb_suffix"].notnull()
-    df_logistic_regression = get_s3_logistic_regression_betas_batch(
+    download_setting = dict(
         subject_ids=df_to_query.loc[sessions_in_han_pipeline, "subject_id"],
         session_dates=df_to_query.loc[sessions_in_han_pipeline, "session_date"],
         nwb_suffixs=df_to_query.loc[sessions_in_han_pipeline, "nwb_suffix"].astype(int),
         model=model,
         max_threads_for_s3=max_threads_for_s3,
     )
+    df_logistic_regression = get_s3_logistic_regression_betas_batch(
+        **download_setting,
+    )
 
     logger.info(
         f"Successfully retrieved logistic regression betas from"
         f" {len(df_logistic_regression)} / {len(df_to_query)} sessions."
     )
-    
+
     if len(df_to_query) > len(df_logistic_regression):
         logger.warning(f"Sessions that are missing in han's pipeline: ")
         logger.warning(df_to_query.loc[~sessions_in_han_pipeline].to_string(index=False))
@@ -482,16 +485,12 @@ def get_logistic_regression(
         on=["subject_id", "session_date"],
         how="left",
     )
-        
+
     # -- Download figures --
     if if_download_figures:
         get_s3_logistic_regression_figure_batch(
-            subject_ids=df_to_query.loc[sessions_in_han_pipeline, "subject_id"],
-            session_dates=df_to_query.loc[sessions_in_han_pipeline, "session_date"],
-            nwb_suffixs=df_to_query.loc[sessions_in_han_pipeline, "nwb_suffix"].astype(int),
-            model=model,
+            **download_setting,
             download_path=download_path,
-            max_threads_for_s3=max_threads_for_s3,
         )
 
     return df_logistic_regression
