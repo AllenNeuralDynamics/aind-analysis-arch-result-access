@@ -2,9 +2,12 @@
 
 import unittest
 
+import pandas as pd
+
 from aind_analysis_arch_result_access.han_pipeline import (
     get_mle_model_fitting,
     get_session_table,
+    get_logistic_regression,
 )
 
 
@@ -12,7 +15,7 @@ class TestGetMasterSessionTable(unittest.TestCase):
     """Get Han's pipeline master session table."""
 
     def test_get_session_table(self):
-        """Example of how to test the truth of a statement."""
+        """Test get session table for a specific subject and session date."""
 
         df = get_session_table(if_load_bpod=False)
         self.assertIsNotNone(df)
@@ -29,7 +32,7 @@ class TestGetMLEModelFitting(unittest.TestCase):
     """Get MLE model fitting results"""
 
     def test_get_mle_model_fitting(self):
-        """Example of how to test the truth of a statement."""
+        """Test get MLE model fitting results for a specific subject and session date."""
 
         df = get_mle_model_fitting(
             subject_id="730945",
@@ -45,5 +48,62 @@ class TestGetMLEModelFitting(unittest.TestCase):
         print(df.columns)
 
 
+class TestGetLogisticRegression(unittest.TestCase):
+    """Get logistic regression results"""
+
+    def test_get_logistic_regression_valid_and_invalid(self):
+        """Test get logistic regression results for a specific subject and session date."""
+
+        # -- Test with a valid and invalid session id
+        df_sessions = pd.DataFrame(
+            {
+                "subject_id": ["mouse not exists", "769253"],
+                "session_date": ["2025-03-12", "2025-03-12"],
+            }
+        )
+        df = get_logistic_regression(
+            df_sessions=df_sessions,
+            model="Su2022",
+            if_download_figures=False,
+        )
+        self.assertEqual(len(df), 1)
+        print(df.head())
+        
+        
+    def test_get_logistic_regression_all_invalid(self):
+        """Test get logistic regression results where all session ids are invalid."""
+
+        # -- Test with a valid and invalid session id
+        df_sessions = pd.DataFrame(
+            {
+                "subject_id": ["mouse not exists"],
+                "session_date": ["2025-03-12"],
+            }
+        )
+        df = get_logistic_regression(
+            df_sessions=df_sessions,
+            model="Su2022",
+            if_download_figures=False,
+        )
+        self.assertEqual(len(df), 0)
+        
+    def test_invalid_model(self):
+        """Test get logistic regression results with an invalid model."""
+
+        # -- Test with a valid and invalid session id
+        df_sessions = pd.DataFrame(
+            {
+                "subject_id": ["769253"],
+                "session_date": ["2025-03-12"],
+            }
+        )
+        with self.assertRaises(ValueError):
+            df = get_logistic_regression(
+                df_sessions=df_sessions,
+                model="invalid_model",
+                if_download_figures=False,
+            )
+
+
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(verbosity=2)
