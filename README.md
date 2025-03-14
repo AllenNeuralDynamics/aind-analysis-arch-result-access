@@ -24,13 +24,37 @@ Try the demo: [![Open In Colab](https://colab.research.google.com/assets/colab-b
 #### Fetch the session master table in [Streamlit](https://foraging-behavior-browser.allenneuraldynamics-test.org/)
 ```python
 from aind_analysis_arch_result_access.han_pipeline import get_session_table
-df = get_session_table(if_load_bpod=False)  # `if_load_bpod=True` will load additional 4000+ old sessions from bpod
+df_master = get_session_table(if_load_bpod=False)  # `if_load_bpod=True` will load additional 4000+ old sessions from bpod
 ```
+#### Fetch logistic regression results
+- Get logistic regression results from one session
+    ```python
+    from aind_analysis_arch_result_access.han_pipeline import get_logistic_regression
+    df_logistic = get_logistic_regression(
+        df_sessions=pd.DataFrame(
+            {
+                "subject_id": ["769253"],
+                "session_date": ["2025-03-12"],
+            }
+        ),
+        model="Su2022",
+    )
+    ```
+- Get logistic regression results in batch (from any dataframe with `subject_id` and `session_date` columns)
+    ```python
+    df_logistic = get_logistic_regression(
+        df_master.query("subject_id == '769253'"),  # All sessions from a single subject (query from the `df_master` above)
+        model="Su2022",
+        if_download_figures=True,  # Also download fitting plots
+        download_path="./tmp",
+    )
+    ```
+
 #### Fetch trial table (🚧 under development)
 #### Fetch analysis figures (🚧 under development)
 ### Access pipeline v2.0 (AIND analysis architecture)
-#### Fetch dynamic foraging model fitting results
-- Get all fitting results from one session
+#### Fetch dynamic foraging MLE model fitting results
+- Get all MLE fitting results from one session
 
     ```python
     from aind_analysis_arch_result_access.han_pipeline import get_mle_model_fitting
