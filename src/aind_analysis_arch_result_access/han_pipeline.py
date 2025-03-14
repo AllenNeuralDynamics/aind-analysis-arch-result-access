@@ -448,9 +448,9 @@ def get_logistic_regression(
         how="left",
     )
 
-    # -- Get results --
+    # -- Get betas --
     sessions_in_han_pipeline = df_to_query["nwb_suffix"].notnull()
-    df_betas = get_s3_logistic_regression_betas_batch(
+    df_logistic_regression = get_s3_logistic_regression_betas_batch(
         subject_ids=df_to_query.loc[sessions_in_han_pipeline, "subject_id"],
         session_dates=df_to_query.loc[sessions_in_han_pipeline, "session_date"],
         nwb_suffixs=df_to_query.loc[sessions_in_han_pipeline, "nwb_suffix"].astype(int),
@@ -458,11 +458,28 @@ def get_logistic_regression(
         max_threads_for_s3=max_threads_for_s3,
     )
 
-    logger.info(
-        f"Found logistic regression betas from {len(df_betas)} / {len(df_to_query)} sessions."
+    print(
+        f"Successfully retrieved logistic regression betas from"
+        f" {len(df_logistic_regression)} / {len(df_to_query)} sessions."
     )
 
-    return df_betas
+    # -- Merge in fitting metrics (from df_session itself) --
+    metrics_columns = [col for col in df_master if model in col and "abs" not in col]
+    df_fitting_metrics = df_master[["subject_id", "session_date"] + metrics_columns].set_index(
+        ["subject_id", "session_date"]
+    )
+    df_fitting_metrics.columns = pd.MultiIndex.from_product(
+        [df_fitting_metrics.columns, [None]],
+        names=["analysis_spec", "analysis_results"],
+    )
+
+    df_logistic_regression = df_logistic_regression.merge(
+        df_fitting_metrics,
+        on=["subject_id", "session_date"],
+        how="left",
+    )
+
+    return df_logistic_regression
 
 
 if __name__ == "__main__":
