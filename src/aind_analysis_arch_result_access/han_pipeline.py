@@ -305,7 +305,10 @@ def get_mle_model_fitting(
     # -- Reformat the records --
     # Turn the nested json into a flat DataFrame and rename the columns, except params
     if if_include_metrics:
-        params = [record["analysis_results"].pop("params") for record in records]
+        params = [
+            record["analysis_results"].pop("params") if record["status"] == "success" else None
+            for record in records
+        ]
     df = pd.json_normalize(records)
     df = df.rename(
         columns={
