@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def get_session_table(if_load_bpod=False):
+def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFrame:
     """
     Load the session table from Han's pipeline and re-build the master table (almost) the same one
     as in the Streamlit app https://foraging-behavior-browser.allenneuraldynamics-test.org/
@@ -40,12 +40,20 @@ def get_session_table(if_load_bpod=False):
     params:
         if_load_bpod: bool, default False
             Whether to load old bpod data. If True, it will take a while.
+        only_recent_n_month: int, optional, default None
+            If specified, only sessions from the past N months will be included.
+            If None, all sessions will be included.
     """
     # --- Load dfs from s3 ---
     logger.info(f"Loading session table from {S3_PATH_BONSAI_ROOT} ...")
     df = get_s3_pkl(f"{S3_PATH_BONSAI_ROOT}/df_sessions.pkl")
     df.rename(columns={"user_name": "trainer", "h2o": "subject_alias"}, inplace=True)
-
+    # Remove hierarchical columns
+    df.columns = df.columns.get_level_values(1)
+    df.sort_values(["session_start_time"], ascending=False, inplace=True)
+    df["session_start_time"] = df["session_start_time"].astype(str)  # Turn to string
+    df = df.reset_index()
+    
     logger.info(f"Loading mouse PI mapping from {S3_PATH_BONSAI_ROOT} ...")
     df_mouse_pi_mapping = pd.DataFrame(get_s3_json(f"{S3_PATH_BONSAI_ROOT}/mouse_pi_mapping.json"))
 
@@ -54,14 +62,18 @@ def get_session_table(if_load_bpod=False):
         df_bpod = get_s3_pkl(f"{S3_PATH_BPOD_ROOT}/df_sessions.pkl")
         df_bpod.rename(columns={"user_name": "trainer", "h2o": "subject_alias"}, inplace=True)
         df = pd.concat([df, df_bpod], axis=0)
+        
+    # Filter sessions by date if requested (early filtering for performance)
+    df["session_date"] = pd.to_datetime(df["session_date"])
+    if only_recent_n_month is not None:
+        # Filter to only recent N months
+        cutoff_date = pd.Timestamp.now() - pd.DateOffset(months=only_recent_n_month)
+        df = df[df["session_date"] >= cutoff_date]
+        logger.info(f"Filtered to sessions from {cutoff_date.date()} onwards (recent {only_recent_n_month} months). Remaining sessions: {len(df)}")
 
     logger.info("Post-hoc processing...")
+
     # --- Cleaning up ---
-    # Remove hierarchical columns
-    df.columns = df.columns.get_level_values(1)
-    df.sort_values(["session_start_time"], ascending=False, inplace=True)
-    df["session_start_time"] = df["session_start_time"].astype(str)  # Turn to string
-    df = df.reset_index()
 
     # Remove invalid session number
     # Remove rows with no session number (effectively only leave the nwb file
@@ -152,7 +164,6 @@ def get_session_table(if_load_bpod=False):
             df[f"abs({col})"] = np.abs(df[col])
 
     # weekday
-    df.session_date = pd.to_datetime(df.session_date)
     df["weekday"] = df.session_date.dt.dayofweek + 1
 
     # trial stats
