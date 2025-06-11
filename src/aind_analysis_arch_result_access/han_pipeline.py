@@ -201,6 +201,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
                 "curriculum_schema_version",
                 "current_stage_suggested",
                 "current_stage_actual",
+                "session_at_current_stage",
                 "decision",
                 "next_stage_suggested",
                 "if_overriden_by_trainer",
