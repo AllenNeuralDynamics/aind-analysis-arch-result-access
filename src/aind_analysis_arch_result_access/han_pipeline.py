@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def get_session_table(if_load_bpod=False):
+def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFrame:
     """
     Load the session table from Han's pipeline and re-build the master table (almost) the same one
     as in the Streamlit app https://foraging-behavior-browser.allenneuraldynamics-test.org/
@@ -40,6 +40,9 @@ def get_session_table(if_load_bpod=False):
     params:
         if_load_bpod: bool, default False
             Whether to load old bpod data. If True, it will take a while.
+        only_recent_n_month: int, optional, default None
+            If specified, only sessions from the past N months will be included.
+            If None, all sessions will be included.
     """
     # --- Load dfs from s3 ---
     logger.info(f"Loading session table from {S3_PATH_BONSAI_ROOT} ...")
@@ -56,12 +59,24 @@ def get_session_table(if_load_bpod=False):
         df = pd.concat([df, df_bpod], axis=0)
 
     logger.info("Post-hoc processing...")
+
     # --- Cleaning up ---
     # Remove hierarchical columns
     df.columns = df.columns.get_level_values(1)
     df.sort_values(["session_start_time"], ascending=False, inplace=True)
     df["session_start_time"] = df["session_start_time"].astype(str)  # Turn to string
     df = df.reset_index()
+
+    # Filter sessions by date if requested (early filtering for performance)
+    df["session_date"] = pd.to_datetime(df["session_date"])
+    if only_recent_n_month is not None:
+        # Filter to only recent N months
+        cutoff_date = pd.Timestamp.now() - pd.DateOffset(months=only_recent_n_month)
+        df = df[df["session_date"] >= cutoff_date]
+        logger.info(
+            f"Filtered to sessions from {cutoff_date.date()} onwards "
+            f"(recent {only_recent_n_month} months). Remaining sessions: {len(df)}"
+        )
 
     # Remove invalid session number
     # Remove rows with no session number (effectively only leave the nwb file
@@ -152,7 +167,6 @@ def get_session_table(if_load_bpod=False):
             df[f"abs({col})"] = np.abs(df[col])
 
     # weekday
-    df.session_date = pd.to_datetime(df.session_date)
     df["weekday"] = df.session_date.dt.dayofweek + 1
 
     # trial stats
@@ -165,6 +179,42 @@ def get_session_table(if_load_bpod=False):
     df["water_after_session_last_session"] = df.groupby("subject_id")["water_after_session"].shift(
         1
     )
+
+    # Merge in curriculum from Han's autotrain database
+    df_autotrain = get_autotrain_table()
+
+    # Drop curriculum columns retrieved from session json by Han's temporary pipeline
+    columns_to_drop = [
+        "curriculum_name",
+        "curriculum_version",
+        "curriculum_schema_version",
+        "current_stage_actual",
+        "if_overriden_by_trainer",
+    ]
+    df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
+
+    # Merge curriculum info autotrain database
+    df = df.merge(
+        df_autotrain.query("if_closed_loop == True")[
+            [
+                "subject_id",
+                "session_date",
+                "curriculum_name",
+                "curriculum_version",
+                "curriculum_schema_version",
+                "current_stage_suggested",
+                "current_stage_actual",
+                "session_at_current_stage",
+                "decision",
+                "next_stage_suggested",
+                "if_overriden_by_trainer",
+            ]
+        ].drop_duplicates(subset=["subject_id", "session_date"], keep="first"),
+        on=["subject_id", "session_date"],
+        how="left",
+    )
+
+    # TODO: Merge in curriculum info from the new AIND curriculum database on SLIMS
 
     # curriculum version group
     df["curriculum_version_group"] = df["curriculum_version"].map(curriculum_ver_mapper)
@@ -206,6 +256,24 @@ def get_session_table(if_load_bpod=False):
     df = df[new_order]
 
     return df
+
+
+def get_autotrain_table():
+    """
+    Load the curriculum data from Han's autotrain database directly from a (duplicated) s3 bucket.
+      s3://aind-behavior-data/foraging_nwb_bonsai_processed/foraging_auto_training/df_manager_447_demo.pkl
+
+
+    """
+    s3_path = (
+        "s3://aind-behavior-data/foraging_nwb_bonsai_processed/"
+        "foraging_auto_training/df_manager_447_demo.pkl"
+    )
+    df_autotrain = get_s3_pkl(s3_path)
+    df_autotrain["session_date"] = pd.to_datetime(df_autotrain["session_date"])
+
+    logger.info("Loaded curriculum data from Han's autotrain.")
+    return df_autotrain
 
 
 def get_mle_model_fitting(
@@ -502,6 +570,6 @@ def get_logistic_regression(
 
 
 if __name__ == "__main__":
-    df = get_session_table()
+    df = get_session_table(if_load_bpod=True)
     print(df)
     print(df.columns)

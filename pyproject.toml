@@ -64,7 +64,7 @@ exclude = '''
 '''
 
 [tool.coverage.run]
-omit = ["*__init__*"]
+omit = ["*__init__*", "s3.py"]
 source = ["aind_analysis_arch_result_access", "tests"]
 
 [tool.coverage.report]

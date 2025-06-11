@@ -20,7 +20,7 @@ pip install aind-analysis-arch-result-access
 
 Try the demo: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14Hph9QuySbgSQBKl8PGi_nCQfoLcLUI-?usp=sharing)
 
-### Access pipeline v1.0 (Han's pipeline)
+### Access pipeline v1.0 (Han's "temporary" pipeline)
 #### Fetch the session master table in [Streamlit](https://foraging-behavior-browser.allenneuraldynamics-test.org/)
 ```python
 from aind_analysis_arch_result_access.han_pipeline import get_session_table
