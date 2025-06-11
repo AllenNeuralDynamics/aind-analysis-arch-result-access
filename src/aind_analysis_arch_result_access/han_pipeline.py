@@ -48,11 +48,6 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     logger.info(f"Loading session table from {S3_PATH_BONSAI_ROOT} ...")
     df = get_s3_pkl(f"{S3_PATH_BONSAI_ROOT}/df_sessions.pkl")
     df.rename(columns={"user_name": "trainer", "h2o": "subject_alias"}, inplace=True)
-    # Remove hierarchical columns
-    df.columns = df.columns.get_level_values(1)
-    df.sort_values(["session_start_time"], ascending=False, inplace=True)
-    df["session_start_time"] = df["session_start_time"].astype(str)  # Turn to string
-    df = df.reset_index()
 
     logger.info(f"Loading mouse PI mapping from {S3_PATH_BONSAI_ROOT} ...")
     df_mouse_pi_mapping = pd.DataFrame(get_s3_json(f"{S3_PATH_BONSAI_ROOT}/mouse_pi_mapping.json"))
@@ -63,8 +58,17 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
         df_bpod.rename(columns={"user_name": "trainer", "h2o": "subject_alias"}, inplace=True)
         df = pd.concat([df, df_bpod], axis=0)
 
-    # Filter sessions by date if requested (early filtering for performance)
+    logger.info("Post-hoc processing...")
+
+    # --- Cleaning up ---
+    # Remove hierarchical columns
+    df.columns = df.columns.get_level_values(1)
+    df.sort_values(["session_start_time"], ascending=False, inplace=True)
+    df["session_start_time"] = df["session_start_time"].astype(str)  # Turn to string
     df["session_date"] = pd.to_datetime(df["session_date"])
+    df = df.reset_index()
+
+    # Filter sessions by date if requested (early filtering for performance)
     if only_recent_n_month is not None:
         # Filter to only recent N months
         cutoff_date = pd.Timestamp.now() - pd.DateOffset(months=only_recent_n_month)
@@ -73,10 +77,6 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
             f"Filtered to sessions from {cutoff_date.date()} onwards "
             f"(recent {only_recent_n_month} months). Remaining sessions: {len(df)}"
         )
-
-    logger.info("Post-hoc processing...")
-
-    # --- Cleaning up ---
 
     # Remove invalid session number
     # Remove rows with no session number (effectively only leave the nwb file
@@ -570,6 +570,6 @@ def get_logistic_regression(
 
 
 if __name__ == "__main__":
-    df = get_session_table()
+    df = get_session_table(if_load_bpod=True)
     print(df)
     print(df.columns)
