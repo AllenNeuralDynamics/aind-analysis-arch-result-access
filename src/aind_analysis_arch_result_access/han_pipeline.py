@@ -65,10 +65,10 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     df.columns = df.columns.get_level_values(1)
     df.sort_values(["session_start_time"], ascending=False, inplace=True)
     df["session_start_time"] = df["session_start_time"].astype(str)  # Turn to string
-    df["session_date"] = pd.to_datetime(df["session_date"])
     df = df.reset_index()
 
     # Filter sessions by date if requested (early filtering for performance)
+    df["session_date"] = pd.to_datetime(df["session_date"])
     if only_recent_n_month is not None:
         # Filter to only recent N months
         cutoff_date = pd.Timestamp.now() - pd.DateOffset(months=only_recent_n_month)
