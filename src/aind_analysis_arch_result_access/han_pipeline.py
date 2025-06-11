@@ -69,7 +69,10 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
         # Filter to only recent N months
         cutoff_date = pd.Timestamp.now() - pd.DateOffset(months=only_recent_n_month)
         df = df[df["session_date"] >= cutoff_date]
-        logger.info(f"Filtered to sessions from {cutoff_date.date()} onwards (recent {only_recent_n_month} months). Remaining sessions: {len(df)}")
+        logger.info(
+            f"Filtered to sessions from {cutoff_date.date()} onwards "
+            f"(recent {only_recent_n_month} months). Remaining sessions: {len(df)}"
+        )
 
     logger.info("Post-hoc processing...")
 
@@ -189,7 +192,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
         "if_overriden_by_trainer",
     ]
     df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
-    
+
     # Merge curriculum info autotrain database
     df = df.merge(
         df_autotrain.query("if_closed_loop == True")[
@@ -254,20 +257,23 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
 
     return df
 
+
 def get_autotrain_table():
     """
     Load the curriculum data from Han's autotrain database directly from a (duplicated) s3 bucket.
       s3://aind-behavior-data/foraging_nwb_bonsai_processed/foraging_auto_training/df_manager_447_demo.pkl
-    
-    
+
+
     """
-    df_autotrain = get_s3_pkl(
-        "s3://aind-behavior-data/foraging_nwb_bonsai_processed/foraging_auto_training/df_manager_447_demo.pkl"
+    s3_path = (
+        "s3://aind-behavior-data/foraging_nwb_bonsai_processed/"
+        "foraging_auto_training/df_manager_447_demo.pkl"
     )
+    df_autotrain = get_s3_pkl(s3_path)
     df_autotrain["session_date"] = pd.to_datetime(df_autotrain["session_date"])
-    
+
     logger.info("Loaded curriculum data from Han's autotrain.")
-    return df_autotrain 
+    return df_autotrain
 
 
 def get_mle_model_fitting(
