@@ -53,7 +53,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     df.sort_values(["session_start_time"], ascending=False, inplace=True)
     df["session_start_time"] = df["session_start_time"].astype(str)  # Turn to string
     df = df.reset_index()
-    
+
     logger.info(f"Loading mouse PI mapping from {S3_PATH_BONSAI_ROOT} ...")
     df_mouse_pi_mapping = pd.DataFrame(get_s3_json(f"{S3_PATH_BONSAI_ROOT}/mouse_pi_mapping.json"))
 
@@ -62,7 +62,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
         df_bpod = get_s3_pkl(f"{S3_PATH_BPOD_ROOT}/df_sessions.pkl")
         df_bpod.rename(columns={"user_name": "trainer", "h2o": "subject_alias"}, inplace=True)
         df = pd.concat([df, df_bpod], axis=0)
-        
+
     # Filter sessions by date if requested (early filtering for performance)
     df["session_date"] = pd.to_datetime(df["session_date"])
     if only_recent_n_month is not None:
@@ -177,6 +177,41 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
         1
     )
 
+    # Merge in curriculum from Han's autotrain database
+    df_autotrain = get_autotrain_table()
+
+    # Drop curriculum columns retrieved from session json by Han's temporary pipeline
+    columns_to_drop = [
+        "curriculum_name",
+        "curriculum_version",
+        "curriculum_schema_version",
+        "current_stage_actual",
+        "if_overriden_by_trainer",
+    ]
+    df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
+    
+    # Merge curriculum info autotrain database
+    df = df.merge(
+        df_autotrain.query("if_closed_loop == True")[
+            [
+                "subject_id",
+                "session_date",
+                "curriculum_name",
+                "curriculum_version",
+                "curriculum_schema_version",
+                "current_stage_suggested",
+                "current_stage_actual",
+                "decision",
+                "next_stage_suggested",
+                "if_overriden_by_trainer",
+            ]
+        ].drop_duplicates(subset=["subject_id", "session_date"], keep="first"),
+        on=["subject_id", "session_date"],
+        how="left",
+    )
+
+    # TODO: Merge in curriculum info from the new AIND curriculum database on SLIMS
+
     # curriculum version group
     df["curriculum_version_group"] = df["curriculum_version"].map(curriculum_ver_mapper)
 
@@ -217,6 +252,21 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     df = df[new_order]
 
     return df
+
+def get_autotrain_table():
+    """
+    Load the curriculum data from Han's autotrain database directly from a (duplicated) s3 bucket.
+      s3://aind-behavior-data/foraging_nwb_bonsai_processed/foraging_auto_training/df_manager_447_demo.pkl
+    
+    
+    """
+    df_autotrain = get_s3_pkl(
+        "s3://aind-behavior-data/foraging_nwb_bonsai_processed/foraging_auto_training/df_manager_447_demo.pkl"
+    )
+    df_autotrain["session_date"] = pd.to_datetime(df_autotrain["session_date"])
+    
+    logger.info("Loaded curriculum data from Han's autotrain.")
+    return df_autotrain 
 
 
 def get_mle_model_fitting(
