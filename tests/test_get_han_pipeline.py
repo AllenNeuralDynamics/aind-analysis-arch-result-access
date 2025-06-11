@@ -3,7 +3,6 @@
 import unittest
 
 import pandas as pd
-import datetime
 
 from aind_analysis_arch_result_access.han_pipeline import (
     get_logistic_regression,
@@ -27,23 +26,25 @@ class TestGetMasterSessionTable(unittest.TestCase):
         self.assertIsNotNone(df)
         self.assertGreater(len(df_bpod), len(df))
         print(df_bpod.head())
-        
+
     def test_get_recent_sessions(self):
         """Test get session table for sessions from the last 6 months."""
-        
+
         # Get sessions from the last 6 months using the parameter
         months = 6
         df = get_session_table(if_load_bpod=False, only_recent_n_month=months)
         self.assertIsNotNone(df)
-        
+
         # Calculate date 6 months ago using the same method as the pipeline
         cutoff_date = pd.Timestamp.now() - pd.DateOffset(months=months)
-                
+
         # Verify no session is earlier than 6 months ago
-        self.assertTrue((df['session_date'] >= cutoff_date).all(), 
-                       f"Found sessions older than {cutoff_date.date()}. "
-                       f"Earliest session: {df['session_date'].min()}")
-        
+        self.assertTrue(
+            (df["session_date"] >= cutoff_date).all(),
+            f"Found sessions older than {cutoff_date.date()}. "
+            f"Earliest session: {df['session_date'].min()}",
+        )
+
         # Verify we have some recent sessions
         self.assertGreater(len(df), 0)
         print(f"Found {len(df)} sessions in the last {months} months")
