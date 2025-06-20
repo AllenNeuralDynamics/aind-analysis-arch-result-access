@@ -4,8 +4,10 @@ https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pip
 """
 
 import logging
+from datetime import datetime
 from typing import Literal
 
+import aind_data_access_api.document_db
 import numpy as np
 import pandas as pd
 
@@ -27,9 +29,6 @@ from aind_analysis_arch_result_access.util.s3 import (
     get_s3_mle_figure_batch,
     get_s3_pkl,
 )
-
-import aind_data_access_api.document_db
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -97,23 +96,17 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     # Handle mouse and user name
     if "bpod_backup_h2o" in df.columns:
         df["subject_alias"] = np.where(
-            df["bpod_backup_h2o"].notnull(),
-            df["bpod_backup_h2o"],
-            df["subject_id"],
+            df["bpod_backup_h2o"].notnull(), df["bpod_backup_h2o"], df["subject_id"],
         )
         df["trainer"] = np.where(
-            df["bpod_backup_user_name"].notnull(),
-            df["bpod_backup_user_name"],
-            df["trainer"],
+            df["bpod_backup_user_name"].notnull(), df["bpod_backup_user_name"], df["trainer"],
         )
     else:
         df["subject_alias"] = df["subject_id"]
 
     # drop 'bpod_backup_' columns
     df.drop(
-        [col for col in df.columns if "bpod_backup_" in col],
-        axis=1,
-        inplace=True,
+        [col for col in df.columns if "bpod_backup_" in col], axis=1, inplace=True,
     )
 
     # --- Normalize trainer name ---
@@ -145,11 +138,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     ] = np.nan
     df.loc[
         df["water_in_session_manual"] > 100,
-        [
-            "water_in_session_manual",
-            "water_in_session_total",
-            "water_after_session",
-        ],
+        ["water_in_session_manual", "water_in_session_total", "water_after_session", ],
     ] = np.nan
     df.loc[
         (df["duration_iti_median"] < 0) | (df["duration_iti_mean"] < 0),
@@ -174,7 +163,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
 
     # trial stats
     df["avg_trial_length_in_seconds"] = (
-            df["session_run_time_in_min"] / df["total_trials_with_autowater"] * 60
+        df["session_run_time_in_min"] / df["total_trials_with_autowater"] * 60
     )
 
     # last day's total water
@@ -242,7 +231,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     if "foraging_performance" not in df.columns:
         df["foraging_performance"] = df["foraging_eff"] * df["finished_rate"]
         df["foraging_performance_random_seed"] = (
-                df["foraging_eff_random_seed"] * df["finished_rate"]
+            df["foraging_eff_random_seed"] * df["finished_rate"]
         )
 
     # Recorder columns so that autotrain info is easier to see
@@ -289,12 +278,11 @@ def get_docDB_table() -> pd.DataFrame:
        Load the curriculum data from the behavior json in docDB
     """
 
-    docdb_client = aind_data_access_api.document_db.MetadataDbClient(host='api.allenneuraldynamics.org',
-                                                                     database='metadata_index',
-                                                                     collection='data_assets'
-                                                                     )
+    docdb_client = aind_data_access_api.document_db.MetadataDbClient(
+        host="api.allenneuraldynamics.org", database="metadata_index", collection="data_assets"
+    )
     sessions = docdb_client.retrieve_docdb_records(
-        filter_query={"name": {"$regex": f"^behavior_(?!.*processed).*"}}
+        filter_query={"name": {"$regex": "^behavior_(?!.*processed).*"}}
     )
 
     df_dict = {
@@ -305,18 +293,27 @@ def get_docDB_table() -> pd.DataFrame:
         "current_stage_actual": [],
         "current_stage_suggested": [],
         "if_overriden_by_trainer": [],
-        "next_stage_suggested": []}
+        "next_stage_suggested": [],
+    }
 
     for session in sessions:
         try:
-            if curriculum_params := session["session"]["stimulus_epochs"][0]["output_parameters"].get("curriculum"):
+            if curriculum_params := session["session"]["stimulus_epochs"][0][
+                "output_parameters"
+            ].get("curriculum"):
                 df_dict["subject_id"].append(session["session"]["subject_id"])
-                df_dict["session_date"].append(datetime.strptime(session["session"]["session_start_time"][:10], "%Y-%m-%d"))
+                df_dict["session_date"].append(
+                    datetime.strptime(session["session"]["session_start_time"][:10], "%Y-%m-%d")
+                )
                 df_dict["curriculum_name"].append(curriculum_params["curriculum_name"])
                 df_dict["curriculum_version"].append(curriculum_params["curriculum_version"])
                 df_dict["current_stage_actual"].append(curriculum_params["current_stage_actual"])
-                df_dict["current_stage_suggested"].append(curriculum_params["current_stage_suggested"])
-                df_dict["if_overriden_by_trainer"].append(curriculum_params["if_overriden_by_trainer"])
+                df_dict["current_stage_suggested"].append(
+                    curriculum_params["current_stage_suggested"]
+                )
+                df_dict["if_overriden_by_trainer"].append(
+                    curriculum_params["if_overriden_by_trainer"]
+                )
                 df_dict["next_stage_suggested"].append(curriculum_params["next_stage_suggested"])
 
         except (TypeError, KeyError, IndexError) as e:
@@ -326,16 +323,16 @@ def get_docDB_table() -> pd.DataFrame:
 
 
 def get_mle_model_fitting(
-        subject_id: str = None,
-        session_date: str = None,
-        agent_alias: str = None,
-        from_custom_query: dict = None,
-        if_include_metrics: bool = True,
-        if_include_latent_variables: bool = True,
-        if_download_figures: bool = False,
-        download_path: str = "./results/mle_figures/",
-        paginate_settings: dict = {"paginate": False},
-        max_threads_for_s3: int = 10,
+    subject_id: str = None,
+    session_date: str = None,
+    agent_alias: str = None,
+    from_custom_query: dict = None,
+    if_include_metrics: bool = True,
+    if_include_latent_variables: bool = True,
+    if_download_figures: bool = False,
+    download_path: str = "./results/mle_figures/",
+    paginate_settings: dict = {"paginate": False},
+    max_threads_for_s3: int = 10,
 ) -> pd.DataFrame:
     """Get MLE fitting from Han's analysis pipeline (the newer one with docDB)
     (https://github.com/AllenNeuralDynamics/aind-analysis-arch-pipeine-dynamic-foraging)
@@ -408,9 +405,7 @@ def get_mle_model_fitting(
     # -- Retrieve records --
     print(f"Query: {filter_query}")
     records = analysis_docDB_dft.retrieve_docdb_records(
-        filter_query=filter_query,
-        projection=projection,
-        **paginate_settings,
+        filter_query=filter_query, projection=projection, **paginate_settings,
     )
 
     if not records:
@@ -475,12 +470,12 @@ def get_mle_model_fitting(
     # -- Download figures --
     if if_download_figures:
         f_names = (
-                df.nwb_name.map(lambda x: x.replace(".nwb", ""))
-                + "_"
-                + df.agent_alias
-                + "_"
-                + df._id.map(lambda x: x[:10])
-                + ".png"
+            df.nwb_name.map(lambda x: x.replace(".nwb", ""))
+            + "_"
+            + df.agent_alias
+            + "_"
+            + df._id.map(lambda x: x[:10])
+            + ".png"
         )  # Build the file names
         get_s3_mle_figure_batch(
             ids=df_success._id,
@@ -523,11 +518,11 @@ def build_query(from_custom_query=None, subject_id=None, session_date=None, agen
 
 
 def get_logistic_regression(
-        df_sessions: pd.DataFrame,
-        model: Literal["Su2022", "Bari2019", "Miller2021", "Hattori2019"],
-        if_download_figures: bool = False,
-        download_path: str = "./results/logistic_regression/",
-        max_threads_for_s3: int = 10,
+    df_sessions: pd.DataFrame,
+    model: Literal["Su2022", "Bari2019", "Miller2021", "Hattori2019"],
+    if_download_figures: bool = False,
+    download_path: str = "./results/logistic_regression/",
+    max_threads_for_s3: int = 10,
 ) -> pd.DataFrame:
     """Get logistic regression betas from Han's analysis pipeline (the old one with pure s3)
     https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pipeline
@@ -576,9 +571,7 @@ def get_logistic_regression(
         model=model,
         max_threads_for_s3=max_threads_for_s3,
     )
-    df_logistic_regression = get_s3_logistic_regression_betas_batch(
-        **download_setting,
-    )
+    df_logistic_regression = get_s3_logistic_regression_betas_batch(**download_setting,)
 
     logger.info(
         f"Successfully retrieved logistic regression betas from"
@@ -598,21 +591,17 @@ def get_logistic_regression(
         ["subject_id", "session_date"]
     )
     df_fitting_metrics.columns = pd.MultiIndex.from_product(
-        [df_fitting_metrics.columns, [None]],
-        names=["analysis_spec", "analysis_results"],
+        [df_fitting_metrics.columns, [None]], names=["analysis_spec", "analysis_results"],
     )
 
     df_logistic_regression = df_logistic_regression.merge(
-        df_fitting_metrics,
-        on=["subject_id", "session_date"],
-        how="left",
+        df_fitting_metrics, on=["subject_id", "session_date"], how="left",
     )
 
     # -- Download figures --
     if if_download_figures:
         get_s3_logistic_regression_figure_batch(
-            **download_setting,
-            download_path=download_path,
+            **download_setting, download_path=download_path,
         )
 
     return df_logistic_regression

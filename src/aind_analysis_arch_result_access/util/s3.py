@@ -124,8 +124,7 @@ def get_s3_mle_figure(id, f_name, download_path):
 
     if fs.exists(f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}"):
         fs.download(
-            f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}",
-            f"{download_path}/{f_name}",
+            f"{S3_PATH_ANALYSIS_ROOT}/{id}/{file_name_on_s3}", f"{download_path}/{f_name}",
         )
 
 
