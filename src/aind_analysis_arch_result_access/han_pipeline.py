@@ -316,7 +316,7 @@ def get_docDB_table() -> pd.DataFrame:
                 )
                 df_dict["next_stage_suggested"].append(curriculum_params["next_stage_suggested"])
 
-        except (TypeError, KeyError, IndexError) as e:
+        except (TypeError, KeyError, IndexError):
             pass
 
     return pd.DataFrame(df_dict)
