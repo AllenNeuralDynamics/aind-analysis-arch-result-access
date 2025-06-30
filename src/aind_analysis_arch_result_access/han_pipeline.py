@@ -211,8 +211,6 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
         how="left",
     )
 
-    # TODO: Merge in curriculum info from the new AIND curriculum database on SLIMS
-
     # curriculum version group
     df["curriculum_version_group"] = df["curriculum_version"].map(curriculum_ver_mapper)
 
@@ -294,13 +292,14 @@ def get_docDB_table() -> pd.DataFrame:
         "current_stage_suggested": [],
         "if_overriden_by_trainer": [],
         "next_stage_suggested": [],
+        "if_closed_loop": []        # IMPORTANT: automatically set to True so merge with autotrain table works
     }
 
     for session in sessions:
         try:
             if curriculum_params := session["session"]["stimulus_epochs"][0][
                 "output_parameters"
-            ].get("curriculum"):
+            ].get("streamlit"):
                 df_dict["subject_id"].append(session["session"]["subject_id"])
                 df_dict["session_date"].append(
                     datetime.strptime(session["session"]["session_start_time"][:10], "%Y-%m-%d")
@@ -315,6 +314,7 @@ def get_docDB_table() -> pd.DataFrame:
                     curriculum_params["if_overriden_by_trainer"]
                 )
                 df_dict["next_stage_suggested"].append(curriculum_params["next_stage_suggested"])
+                df_dict["if_closed_loop"].append(True)  # IMPORTANT: automatically set to True so merge with autotrain table works
 
         except (TypeError, KeyError, IndexError):
             pass
