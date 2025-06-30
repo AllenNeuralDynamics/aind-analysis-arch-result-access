@@ -138,7 +138,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     ] = np.nan
     df.loc[
         df["water_in_session_manual"] > 100,
-        ["water_in_session_manual", "water_in_session_total", "water_after_session", ],
+        ["water_in_session_manual", "water_in_session_total", "water_after_session",],
     ] = np.nan
     df.loc[
         (df["duration_iti_median"] < 0) | (df["duration_iti_mean"] < 0),
@@ -292,7 +292,7 @@ def get_docDB_table() -> pd.DataFrame:
         "current_stage_suggested": [],
         "if_overriden_by_trainer": [],
         "next_stage_suggested": [],
-        "if_closed_loop": []        # IMPORTANT: automatically set to True so merge with autotrain table works
+        "if_closed_loop": [],  # IMPORTANT: automatically set to True to merge with autotrain
     }
 
     for session in sessions:
@@ -314,7 +314,9 @@ def get_docDB_table() -> pd.DataFrame:
                     curriculum_params["if_overriden_by_trainer"]
                 )
                 df_dict["next_stage_suggested"].append(curriculum_params["next_stage_suggested"])
-                df_dict["if_closed_loop"].append(True)  # IMPORTANT: automatically set to True so merge with autotrain table works
+                df_dict["if_closed_loop"].append(
+                    True
+                )  # IMPORTANT: automatically set to True so merge with autotrain table works
 
         except (TypeError, KeyError, IndexError):
             pass
