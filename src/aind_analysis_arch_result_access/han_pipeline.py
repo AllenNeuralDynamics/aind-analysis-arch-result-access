@@ -138,7 +138,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     ] = np.nan
     df.loc[
         df["water_in_session_manual"] > 100,
-        ["water_in_session_manual", "water_in_session_total", "water_after_session",],
+        ["water_in_session_manual", "water_in_session_total", "water_after_session", ],
     ] = np.nan
     df.loc[
         (df["duration_iti_median"] < 0) | (df["duration_iti_mean"] < 0),

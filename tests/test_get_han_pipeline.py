@@ -98,7 +98,7 @@ class TestGetLogisticRegression(unittest.TestCase):
 
         # -- Test with a valid and invalid session id
         df_sessions = pd.DataFrame(
-            {"subject_id": ["mouse not exists"], "session_date": ["2025-03-12"],}
+            {"subject_id": ["mouse not exists"], "session_date": ["2025-03-12"], }
         )
         df = get_logistic_regression(
             df_sessions=df_sessions, model="Su2022", if_download_figures=False,
@@ -109,7 +109,7 @@ class TestGetLogisticRegression(unittest.TestCase):
         """Test get logistic regression results with an invalid model."""
 
         # -- Test with a valid and invalid session id
-        df_sessions = pd.DataFrame({"subject_id": ["769253"], "session_date": ["2025-03-12"],})
+        df_sessions = pd.DataFrame({"subject_id": ["769253"], "session_date": ["2025-03-12"], })
         with self.assertRaises(ValueError):
             get_logistic_regression(
                 df_sessions=df_sessions, model="invalid_model", if_download_figures=False,
