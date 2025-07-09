@@ -163,7 +163,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
 
     # trial stats
     df["avg_trial_length_in_seconds"] = (
-            df["session_run_time_in_min"] / df["total_trials_with_autowater"] * 60
+        df["session_run_time_in_min"] / df["total_trials_with_autowater"] * 60
     )
 
     # last day's total water
@@ -229,7 +229,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     if "foraging_performance" not in df.columns:
         df["foraging_performance"] = df["foraging_eff"] * df["finished_rate"]
         df["foraging_performance_random_seed"] = (
-                df["foraging_eff_random_seed"] * df["finished_rate"]
+            df["foraging_eff_random_seed"] * df["finished_rate"]
         )
 
     # Recorder columns so that autotrain info is easier to see
@@ -284,14 +284,14 @@ def get_docDB_table() -> pd.DataFrame:
             "session.stimulus_epochs.software.name": "dynamic-foraging-task",
             "data_description.data_level": "raw",
             "session.stimulus_epochs": {
-                "$elemMatch": {
-                    "output_parameters.streamlit": {"$exists": True}
-                }
-            }
+                "$elemMatch": {"output_parameters.streamlit": {"$exists": True}}
+            },
         },
-        projection={"session.subject_id": 1,
-                    "session.session_start_time": 1,
-                    "session.stimulus_epochs.output_parameters.streamlit": 1}
+        projection={
+            "session.subject_id": 1,
+            "session.session_start_time": 1,
+            "session.stimulus_epochs.output_parameters.streamlit": 1,
+        },
     )
 
     df_dict = {
@@ -308,7 +308,9 @@ def get_docDB_table() -> pd.DataFrame:
 
     for session in sessions:
         try:
-            curriculum_params = session["session"]["stimulus_epochs"][0]["output_parameters"]["streamlit"]
+            curriculum_params = session["session"]["stimulus_epochs"][0]["output_parameters"][
+                "streamlit"
+            ]
             df_dict["subject_id"].append(session["session"]["subject_id"])
             df_dict["session_date"].append(
                 datetime.strptime(session["session"]["session_start_time"][:10], "%Y-%m-%d")
@@ -329,16 +331,16 @@ def get_docDB_table() -> pd.DataFrame:
 
 
 def get_mle_model_fitting(
-        subject_id: str = None,
-        session_date: str = None,
-        agent_alias: str = None,
-        from_custom_query: dict = None,
-        if_include_metrics: bool = True,
-        if_include_latent_variables: bool = True,
-        if_download_figures: bool = False,
-        download_path: str = "./results/mle_figures/",
-        paginate_settings: dict = {"paginate": False},
-        max_threads_for_s3: int = 10,
+    subject_id: str = None,
+    session_date: str = None,
+    agent_alias: str = None,
+    from_custom_query: dict = None,
+    if_include_metrics: bool = True,
+    if_include_latent_variables: bool = True,
+    if_download_figures: bool = False,
+    download_path: str = "./results/mle_figures/",
+    paginate_settings: dict = {"paginate": False},
+    max_threads_for_s3: int = 10,
 ) -> pd.DataFrame:
     """Get MLE fitting from Han's analysis pipeline (the newer one with docDB)
     (https://github.com/AllenNeuralDynamics/aind-analysis-arch-pipeine-dynamic-foraging)
@@ -476,12 +478,12 @@ def get_mle_model_fitting(
     # -- Download figures --
     if if_download_figures:
         f_names = (
-                df.nwb_name.map(lambda x: x.replace(".nwb", ""))
-                + "_"
-                + df.agent_alias
-                + "_"
-                + df._id.map(lambda x: x[:10])
-                + ".png"
+            df.nwb_name.map(lambda x: x.replace(".nwb", ""))
+            + "_"
+            + df.agent_alias
+            + "_"
+            + df._id.map(lambda x: x[:10])
+            + ".png"
         )  # Build the file names
         get_s3_mle_figure_batch(
             ids=df_success._id,
@@ -524,11 +526,11 @@ def build_query(from_custom_query=None, subject_id=None, session_date=None, agen
 
 
 def get_logistic_regression(
-        df_sessions: pd.DataFrame,
-        model: Literal["Su2022", "Bari2019", "Miller2021", "Hattori2019"],
-        if_download_figures: bool = False,
-        download_path: str = "./results/logistic_regression/",
-        max_threads_for_s3: int = 10,
+    df_sessions: pd.DataFrame,
+    model: Literal["Su2022", "Bari2019", "Miller2021", "Hattori2019"],
+    if_download_figures: bool = False,
+    download_path: str = "./results/logistic_regression/",
+    max_threads_for_s3: int = 10,
 ) -> pd.DataFrame:
     """Get logistic regression betas from Han's analysis pipeline (the old one with pure s3)
     https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pipeline
@@ -577,7 +579,7 @@ def get_logistic_regression(
         model=model,
         max_threads_for_s3=max_threads_for_s3,
     )
-    df_logistic_regression = get_s3_logistic_regression_betas_batch(**download_setting, )
+    df_logistic_regression = get_s3_logistic_regression_betas_batch(**download_setting,)
 
     logger.info(
         f"Successfully retrieved logistic regression betas from"
