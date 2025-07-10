@@ -276,6 +276,8 @@ def get_docDB_table() -> pd.DataFrame:
        Load the curriculum data from the behavior json in docDB
     """
 
+    logger.info("Loading curriculum data from docDB...")
+
     docdb_client = aind_data_access_api.document_db.MetadataDbClient(
         host="api.allenneuraldynamics.org", database="metadata_index", collection="data_assets"
     )
@@ -321,6 +323,7 @@ def get_docDB_table() -> pd.DataFrame:
         except (TypeError, KeyError, IndexError):
             pass
 
+    logger.info(f"Loaded {len(df_dict)} curriculum data from docDB.")
     return pd.DataFrame(df_dict)
 
 
