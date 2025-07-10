@@ -282,7 +282,18 @@ def get_docDB_table() -> pd.DataFrame:
         host="api.allenneuraldynamics.org", database="metadata_index", collection="data_assets"
     )
     sessions = docdb_client.retrieve_docdb_records(
-        filter_query={"name": {"$regex": "^behavior_(?!.*processed).*"}}
+        filter_query={
+            "session.stimulus_epochs.software.name": "dynamic-foraging-task",
+            "data_description.data_level": "raw",
+            "session.stimulus_epochs": {
+                "$elemMatch": {"output_parameters.streamlit": {"$exists": True}}
+            },
+        },
+        projection={
+            "session.subject_id": 1,
+            "session.session_start_time": 1,
+            "session.stimulus_epochs.output_parameters.streamlit": 1,
+        },
     )
 
     df_dict = {
@@ -299,26 +310,21 @@ def get_docDB_table() -> pd.DataFrame:
 
     for session in sessions:
         try:
-            if curriculum_params := session["session"]["stimulus_epochs"][0][
-                "output_parameters"
-            ].get("streamlit"):
-                df_dict["subject_id"].append(session["session"]["subject_id"])
-                df_dict["session_date"].append(
-                    datetime.strptime(session["session"]["session_start_time"][:10], "%Y-%m-%d")
-                )
-                df_dict["curriculum_name"].append(curriculum_params["curriculum_name"])
-                df_dict["curriculum_version"].append(curriculum_params["curriculum_version"])
-                df_dict["current_stage_actual"].append(curriculum_params["current_stage_actual"])
-                df_dict["current_stage_suggested"].append(
-                    curriculum_params["current_stage_suggested"]
-                )
-                df_dict["if_overriden_by_trainer"].append(
-                    curriculum_params["if_overriden_by_trainer"]
-                )
-                df_dict["next_stage_suggested"].append(curriculum_params["next_stage_suggested"])
-                df_dict["if_closed_loop"].append(
-                    True
-                )  # IMPORTANT: automatically set to True so merge with autotrain table works
+            curriculum_params = session["session"]["stimulus_epochs"][0]["output_parameters"][
+                "streamlit"
+            ]
+            df_dict["subject_id"].append(session["session"]["subject_id"])
+            df_dict["session_date"].append(
+                datetime.strptime(session["session"]["session_start_time"][:10], "%Y-%m-%d")
+            )
+            df_dict["curriculum_name"].append(curriculum_params["curriculum_name"])
+            df_dict["curriculum_version"].append(curriculum_params["curriculum_version"])
+            df_dict["current_stage_actual"].append(curriculum_params["current_stage_actual"])
+            df_dict["current_stage_suggested"].append(curriculum_params["current_stage_suggested"])
+            df_dict["if_overriden_by_trainer"].append(curriculum_params["if_overriden_by_trainer"])
+            df_dict["next_stage_suggested"].append(curriculum_params["next_stage_suggested"])
+            # IMPORTANT: automatically set to True so merge with autotrain table works
+            df_dict["if_closed_loop"].append(True)
 
         except (TypeError, KeyError, IndexError):
             pass
