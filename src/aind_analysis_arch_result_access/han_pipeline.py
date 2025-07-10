@@ -4,8 +4,10 @@ https://github.com/AllenNeuralDynamics/aind-foraging-behavior-bonsai-trigger-pip
 """
 
 import logging
+from datetime import datetime
 from typing import Literal
 
+import aind_data_access_api.document_db
 import numpy as np
 import pandas as pd
 
@@ -94,23 +96,17 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     # Handle mouse and user name
     if "bpod_backup_h2o" in df.columns:
         df["subject_alias"] = np.where(
-            df["bpod_backup_h2o"].notnull(),
-            df["bpod_backup_h2o"],
-            df["subject_id"],
+            df["bpod_backup_h2o"].notnull(), df["bpod_backup_h2o"], df["subject_id"],
         )
         df["trainer"] = np.where(
-            df["bpod_backup_user_name"].notnull(),
-            df["bpod_backup_user_name"],
-            df["trainer"],
+            df["bpod_backup_user_name"].notnull(), df["bpod_backup_user_name"], df["trainer"],
         )
     else:
         df["subject_alias"] = df["subject_id"]
 
     # drop 'bpod_backup_' columns
     df.drop(
-        [col for col in df.columns if "bpod_backup_" in col],
-        axis=1,
-        inplace=True,
+        [col for col in df.columns if "bpod_backup_" in col], axis=1, inplace=True,
     )
 
     # --- Normalize trainer name ---
@@ -142,11 +138,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     ] = np.nan
     df.loc[
         df["water_in_session_manual"] > 100,
-        [
-            "water_in_session_manual",
-            "water_in_session_total",
-            "water_after_session",
-        ],
+        ["water_in_session_manual", "water_in_session_total", "water_after_session", ],
     ] = np.nan
     df.loc[
         (df["duration_iti_median"] < 0) | (df["duration_iti_mean"] < 0),
@@ -183,6 +175,11 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     # Merge in curriculum from Han's autotrain database
     df_autotrain = get_autotrain_table()
 
+    # merge in curriculum from docDB
+    df_docDB = get_docDB_table()
+
+    pd_merged = pd.concat([df_autotrain, df_docDB], axis=0, ignore_index=True)
+
     # Drop curriculum columns retrieved from session json by Han's temporary pipeline
     columns_to_drop = [
         "curriculum_name",
@@ -195,7 +192,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
 
     # Merge curriculum info autotrain database
     df = df.merge(
-        df_autotrain.query("if_closed_loop == True")[
+        pd_merged.query("if_closed_loop == True")[
             [
                 "subject_id",
                 "session_date",
@@ -213,8 +210,6 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
         on=["subject_id", "session_date"],
         how="left",
     )
-
-    # TODO: Merge in curriculum info from the new AIND curriculum database on SLIMS
 
     # curriculum version group
     df["curriculum_version_group"] = df["curriculum_version"].map(curriculum_ver_mapper)
@@ -274,6 +269,68 @@ def get_autotrain_table():
 
     logger.info("Loaded curriculum data from Han's autotrain.")
     return df_autotrain
+
+
+def get_docDB_table() -> pd.DataFrame:
+    """
+       Load the curriculum data from the behavior json in docDB
+    """
+
+    logger.info("Loading curriculum data from docDB...")
+
+    docdb_client = aind_data_access_api.document_db.MetadataDbClient(
+        host="api.allenneuraldynamics.org", database="metadata_index", collection="data_assets"
+    )
+    sessions = docdb_client.retrieve_docdb_records(
+        filter_query={
+            "session.stimulus_epochs.software.name": "dynamic-foraging-task",
+            "data_description.data_level": "raw",
+            "session.stimulus_epochs": {
+                "$elemMatch": {"output_parameters.streamlit": {"$exists": True}}
+            },
+        },
+        projection={
+            "session.subject_id": 1,
+            "session.session_start_time": 1,
+            "session.stimulus_epochs.output_parameters.streamlit": 1,
+        },
+    )
+
+    df_dict = {
+        "subject_id": [],
+        "session_date": [],
+        "curriculum_name": [],
+        "curriculum_version": [],
+        "current_stage_actual": [],
+        "current_stage_suggested": [],
+        "if_overriden_by_trainer": [],
+        "next_stage_suggested": [],
+        "if_closed_loop": [],  # IMPORTANT: automatically set to True to merge with autotrain
+    }
+
+    for session in sessions:
+        try:
+            curriculum_params = session["session"]["stimulus_epochs"][0]["output_parameters"][
+                "streamlit"
+            ]
+            df_dict["subject_id"].append(session["session"]["subject_id"])
+            df_dict["session_date"].append(
+                datetime.strptime(session["session"]["session_start_time"][:10], "%Y-%m-%d")
+            )
+            df_dict["curriculum_name"].append(curriculum_params["curriculum_name"])
+            df_dict["curriculum_version"].append(curriculum_params["curriculum_version"])
+            df_dict["current_stage_actual"].append(curriculum_params["current_stage_actual"])
+            df_dict["current_stage_suggested"].append(curriculum_params["current_stage_suggested"])
+            df_dict["if_overriden_by_trainer"].append(curriculum_params["if_overriden_by_trainer"])
+            df_dict["next_stage_suggested"].append(curriculum_params["next_stage_suggested"])
+            # IMPORTANT: automatically set to True so merge with autotrain table works
+            df_dict["if_closed_loop"].append(True)
+
+        except (TypeError, KeyError, IndexError):
+            pass
+
+    logger.info(f"Loaded {len(df_dict)} curriculum data from docDB.")
+    return pd.DataFrame(df_dict)
 
 
 def get_mle_model_fitting(
@@ -359,9 +416,7 @@ def get_mle_model_fitting(
     # -- Retrieve records --
     print(f"Query: {filter_query}")
     records = analysis_docDB_dft.retrieve_docdb_records(
-        filter_query=filter_query,
-        projection=projection,
-        **paginate_settings,
+        filter_query=filter_query, projection=projection, **paginate_settings,
     )
 
     if not records:
@@ -527,9 +582,7 @@ def get_logistic_regression(
         model=model,
         max_threads_for_s3=max_threads_for_s3,
     )
-    df_logistic_regression = get_s3_logistic_regression_betas_batch(
-        **download_setting,
-    )
+    df_logistic_regression = get_s3_logistic_regression_betas_batch(**download_setting,)
 
     logger.info(
         f"Successfully retrieved logistic regression betas from"
@@ -549,21 +602,17 @@ def get_logistic_regression(
         ["subject_id", "session_date"]
     )
     df_fitting_metrics.columns = pd.MultiIndex.from_product(
-        [df_fitting_metrics.columns, [None]],
-        names=["analysis_spec", "analysis_results"],
+        [df_fitting_metrics.columns, [None]], names=["analysis_spec", "analysis_results"],
     )
 
     df_logistic_regression = df_logistic_regression.merge(
-        df_fitting_metrics,
-        on=["subject_id", "session_date"],
-        how="left",
+        df_fitting_metrics, on=["subject_id", "session_date"], how="left",
     )
 
     # -- Download figures --
     if if_download_figures:
         get_s3_logistic_regression_figure_batch(
-            **download_setting,
-            download_path=download_path,
+            **download_setting, download_path=download_path,
         )
 
     return df_logistic_regression
