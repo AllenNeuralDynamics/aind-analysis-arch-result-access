@@ -357,7 +357,7 @@ def check_qvalue_spread(latents):
         uniform_ratio_list.append(uniform_ratio)
     return uniform_ratio_list
 
-        
+
 def get_mle_model_fitting(
     subject_id: str = None,
     session_date: str = None,
