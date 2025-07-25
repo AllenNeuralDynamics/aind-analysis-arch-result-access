@@ -336,22 +336,26 @@ def get_docDB_table() -> pd.DataFrame:
 
 def check_qvalue_spread(latents):
     """
-    Check if the q_vals in the latents are uniformly distributed.
+    For a list of latents, compute the uniform ratio of q_values for each.
+    Returns a list of uniform ratios (np.nan if q_value is missing).
     """
-    q_vals = latents.get("q_value", None)
-    if q_vals is None:
-        return np.nan
-    # Bin q_vals into a histogram (e.g., 20 bins between 0 and 1)
+    uniform_ratio_list = []
     num_bins = 100
-    hist, _ = np.histogram(q_vals, bins=num_bins, range=(0, 1))
-    prob = hist / np.sum(hist)  # Normalize to probabilities
-
     max_entropy = np.log2(num_bins)
-    # Remove zero entries to avoid log(0)
-    prob = prob[prob > 0]
-
-    uniform_ratio = entropy(prob, base = 2)/max_entropy
-    return uniform_ratio > 0.7
+    for latent in latents:
+        q_vals = latent.get("latent_variables", None).get("q_value", None)
+        if q_vals is None:
+            uniform_ratio_list.append(np.nan)
+            continue
+        hist, _ = np.histogram(q_vals, bins=num_bins, range=(0, 1))
+        prob = hist / np.sum(hist) if np.sum(hist) > 0 else np.zeros_like(hist)
+        prob = prob[prob > 0]
+        if len(prob) == 0:
+            uniform_ratio_list.append(np.nan)
+            continue
+        uniform_ratio = entropy(prob, base=2) / max_entropy
+        uniform_ratio_list.append(uniform_ratio)
+    return uniform_ratio_list
 
         
 def get_mle_model_fitting(
