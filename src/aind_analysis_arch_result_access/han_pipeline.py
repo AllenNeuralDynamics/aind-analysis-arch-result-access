@@ -10,6 +10,7 @@ from typing import Literal
 import aind_data_access_api.document_db
 import numpy as np
 import pandas as pd
+from scipy.stats import entropy
 
 from aind_analysis_arch_result_access import (
     S3_PATH_BONSAI_ROOT,
@@ -333,6 +334,26 @@ def get_docDB_table() -> pd.DataFrame:
     return pd.DataFrame(df_dict)
 
 
+def check_qvalue_spread(latents):
+    """
+    Check if the q_vals in the latents are uniformly distributed.
+    """
+    q_vals = latents.get("q_value", None)
+    if q_vals is None:
+        return np.nan
+    # Bin q_vals into a histogram (e.g., 20 bins between 0 and 1)
+    num_bins = 100
+    hist, _ = np.histogram(q_vals, bins=num_bins, range=(0, 1))
+    prob = hist / np.sum(hist)  # Normalize to probabilities
+
+    max_entropy = np.log2(num_bins)
+    # Remove zero entries to avoid log(0)
+    prob = prob[prob > 0]
+
+    uniform_ratio = entropy(prob, base = 2)/max_entropy
+    return uniform_ratio > 0.7
+
+        
 def get_mle_model_fitting(
     subject_id: str = None,
     session_date: str = None,
@@ -477,6 +498,7 @@ def get_mle_model_fitting(
             df_success._id, max_threads_for_s3=max_threads_for_s3
         )
         df = df.merge(pd.DataFrame(latents), on="_id", how="left")
+        df['qvalue_spread'] = check_qvalue_spread(latents)
 
     # -- Download figures --
     if if_download_figures:
