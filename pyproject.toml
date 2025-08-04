@@ -22,7 +22,8 @@ dependencies = [
     'pandas',
     'numpy',
     'aind-data-access-api[docdb]',
-    'tqdm'
+    'tqdm',
+    'scipy',
 ]
 
 [project.optional-dependencies]

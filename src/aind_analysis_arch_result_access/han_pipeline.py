@@ -10,6 +10,7 @@ from typing import Literal
 import aind_data_access_api.document_db
 import numpy as np
 import pandas as pd
+from scipy.stats import entropy
 
 from aind_analysis_arch_result_access import (
     S3_PATH_BONSAI_ROOT,
@@ -333,6 +334,33 @@ def get_docDB_table() -> pd.DataFrame:
     return pd.DataFrame(df_dict)
 
 
+def check_qvalue_spread(latents):
+    """
+    For a list of latents, compute the uniform ratio of q_values for each.
+    Returns a list of uniform ratios (np.nan if q_value is missing).
+    """
+    uniform_ratio_list = []
+    num_bins = 100
+    max_entropy = np.log2(num_bins)
+    for latent in latents:
+        if latent is None or latent.get("latent_variables") is None:
+            uniform_ratio_list.append(np.nan)
+            continue
+        q_vals = latent["latent_variables"].get("q_value", None)
+        if q_vals is None:
+            uniform_ratio_list.append(np.nan)
+            continue
+        hist, _ = np.histogram(q_vals, bins=num_bins, range=(0, 1))
+        prob = hist / np.sum(hist) if np.sum(hist) > 0 else np.zeros_like(hist)
+        prob = prob[prob > 0]
+        if len(prob) == 0:
+            uniform_ratio_list.append(np.nan)
+            continue
+        uniform_ratio = entropy(prob, base=2) / max_entropy
+        uniform_ratio_list.append(uniform_ratio)
+    return uniform_ratio_list
+
+
 def get_mle_model_fitting(
     subject_id: str = None,
     session_date: str = None,
@@ -477,6 +505,7 @@ def get_mle_model_fitting(
             df_success._id, max_threads_for_s3=max_threads_for_s3
         )
         df = df.merge(pd.DataFrame(latents), on="_id", how="left")
+        df['qvalue_spread'] = check_qvalue_spread(latents)
 
     # -- Download figures --
     if if_download_figures:
