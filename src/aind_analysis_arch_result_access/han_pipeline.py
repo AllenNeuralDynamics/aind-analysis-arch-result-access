@@ -343,7 +343,7 @@ def check_qvalue_spread(latents):
     num_bins = 100
     max_entropy = np.log2(num_bins)
     for latent in latents:
-        if latent is None or "latent_variables" not in latent:
+        if latent is None or latent.get("latent_variables") is None:
             uniform_ratio_list.append(np.nan)
             continue
         q_vals = latent["latent_variables"].get("q_value", None)
