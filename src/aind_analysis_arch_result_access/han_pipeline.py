@@ -334,7 +334,7 @@ def get_docDB_table() -> pd.DataFrame:
     return pd.DataFrame(df_dict)
 
 
-def check_qvalue_spread(latents):
+def add_qvalue_spread(latents):
     """
     For a list of latents, compute the uniform ratio of q_values for each.
     Returns a list of uniform ratios (np.nan if q_value is missing).
@@ -344,21 +344,21 @@ def check_qvalue_spread(latents):
     max_entropy = np.log2(num_bins)
     for latent in latents:
         if latent is None or latent.get("latent_variables") is None:
-            uniform_ratio_list.append(np.nan)
+            latent["qvalue_spread"] = np.nan
             continue
         q_vals = latent["latent_variables"].get("q_value", None)
         if q_vals is None:
-            uniform_ratio_list.append(np.nan)
+            latent["qvalue_spread"] = np.nan
             continue
         hist, _ = np.histogram(q_vals, bins=num_bins, range=(0, 1))
         prob = hist / np.sum(hist) if np.sum(hist) > 0 else np.zeros_like(hist)
         prob = prob[prob > 0]
         if len(prob) == 0:
-            uniform_ratio_list.append(np.nan)
+            latent["qvalue_spread"] = np.nan
             continue
         uniform_ratio = entropy(prob, base=2) / max_entropy
-        uniform_ratio_list.append(uniform_ratio)
-    return uniform_ratio_list
+        latent["qvalue_spread"] = uniform_ratio
+    return latent
 
 
 def get_mle_model_fitting(
@@ -504,8 +504,8 @@ def get_mle_model_fitting(
         latents = get_s3_latent_variable_batch(
             df_success._id, max_threads_for_s3=max_threads_for_s3
         )
+        latents= add_qvalue_spread(latents)
         df = df.merge(pd.DataFrame(latents), on="_id", how="left")
-        df['qvalue_spread'] = check_qvalue_spread(latents)
 
     # -- Download figures --
     if if_download_figures:
