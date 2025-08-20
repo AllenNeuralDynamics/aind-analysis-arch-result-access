@@ -339,7 +339,6 @@ def add_qvalue_spread(latents):
     For a list of latents, compute the uniform ratio of q_values for each.
     Returns a list of uniform ratios (np.nan if q_value is missing).
     """
-    uniform_ratio_list = []
     num_bins = 100
     max_entropy = np.log2(num_bins)
     for latent in latents:
@@ -504,7 +503,7 @@ def get_mle_model_fitting(
         latents = get_s3_latent_variable_batch(
             df_success._id, max_threads_for_s3=max_threads_for_s3
         )
-        latents= add_qvalue_spread(latents)
+        latents = add_qvalue_spread(latents)
         df = df.merge(pd.DataFrame(latents), on="_id", how="left")
 
     # -- Download figures --
