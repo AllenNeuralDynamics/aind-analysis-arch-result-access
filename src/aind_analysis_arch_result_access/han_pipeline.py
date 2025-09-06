@@ -357,7 +357,7 @@ def add_qvalue_spread(latents):
             continue
         uniform_ratio = entropy(prob, base=2) / max_entropy
         latent["qvalue_spread"] = uniform_ratio
-    return latent
+    return latents
 
 
 def get_mle_model_fitting(
