@@ -337,6 +337,7 @@ def get_docDB_table() -> pd.DataFrame:
 def add_qvalue_spread(latents):
     """
     For a list of latents, compute the uniform ratio of q_values for each.
+    q_value_spread goes from 0 to 1, a ratio of > 0.8 would be best.
     Returns a list of uniform ratios (np.nan if q_value is missing).
     """
     num_bins = 100
