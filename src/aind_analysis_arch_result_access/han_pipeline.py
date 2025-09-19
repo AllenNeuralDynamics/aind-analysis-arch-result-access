@@ -222,7 +222,7 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
         'stage_4': 'STAGE_4',
         'final': 'STAGE_FINAL',
     }
-    df["current_stage_actual"] = df["current_stage_actual"].map(map_stage)
+    df["current_stage_actual"] = df["current_stage_actual"].map(map_stage).fillna(df["current_stage_actual"])
 
     map_curriculum = {
         "UnCoupledNoBaiting2p3Curriculum": ["Uncoupled Without Baiting", "2.3"],
