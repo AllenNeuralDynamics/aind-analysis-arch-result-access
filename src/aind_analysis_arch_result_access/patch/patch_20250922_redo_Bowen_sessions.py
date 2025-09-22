@@ -4,11 +4,17 @@ import logging
 
 from codeocean import CodeOcean
 from codeocean.data_asset import DataAssetAttachParams
+from aind_data_access_api.document_db import MetadataDbClient
+
 import shutil
 
 logger = logging.getLogger(__name__)
 
 client = CodeOcean(domain="https://codeocean.allenneuraldynamics.org", token=os.getenv("CO_API"))
+
+prod_db_client = MetadataDbClient(
+    host="api.allenneuraldynamics.org", database="analysis", collection="dynamic-foraging-analysis",
+)
 
 def get_asset_ids(csv_file = '~/capsule/data/Bowen_IncompleteSessions-081225.csv'):
     df = pd.read_csv(csv_file)
@@ -37,7 +43,10 @@ def extract_all_nwbs(mounted):
     # Copy the nwb file from mounted_directory/nwb to /results/extracted_Bowen_nwbs
     output_dir = '/results/extracted_Bowen_nwbs'
     os.makedirs(output_dir, exist_ok=True)
-    for asset in mounted:
+    
+    import concurrent.futures
+
+    def process_asset(asset):
         try:
             nwb_source = os.path.join('/root/capsule/data', asset['mount'], 'nwb')
             if os.path.exists(nwb_source):
@@ -53,14 +62,47 @@ def extract_all_nwbs(mounted):
                 logger.warning(f"No 'nwb' directory found in asset {asset['id']} at {nwb_source}")
         except Exception as e:
             logger.error(f"Failed to extract NWB files from asset {asset['id']}: {e}")
-            
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        executor.map(process_asset, mounted)
+        
+def remove_records_from_docDB(mounted):
+    
+    for this in mounted:
+        # Get docDB query
+        name = this["mount"]
+        splits = name.split('_')
+        subject_id = splits[1]
+        session_date = splits[2]
+        
+        record_filter={
+                "subject_id": subject_id,
+                "session_date": session_date
+            }
+        
+        # Delete records from docDB
+        before_count = len(prod_db_client._get_records(filter_query=record_filter, projection={"_id": 1}))
+        results = prod_db_client._delete_many_records(
+            record_filter={
+                "subject_id": subject_id,
+                "session_date": session_date
+            }
+        )
+        after_count = len(prod_db_client._get_records(filter_query=record_filter, projection={"_id": 1}))
+        if results.status_code == 200:
+            logger.info(f"Deleted {before_count - after_count} records for subject {subject_id} on date {session_date}") 
+        else:
+            logger.error(f"Failed to delete records for subject {subject_id} on date {session_date}: {results.raw_response}")
 
 if __name__ == "__main__":
     
     logging.basicConfig(level=logging.INFO)
 
     asset_ids = get_asset_ids()
+    
     mounted = attach_assets(asset_ids)
     
-    extract_all_nwbs(mounted)
+    # extract_all_nwbs(mounted)
     
+    # --- THIS CANNOT BE UNDONE!! ---
+    # remove_records_from_docDB(mounted)
