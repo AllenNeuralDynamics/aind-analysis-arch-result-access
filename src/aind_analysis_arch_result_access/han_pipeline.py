@@ -422,6 +422,7 @@ def get_mle_model_fitting(
         "status": 1,
         "subject_id": 1,
         "session_date": 1,
+        "analysis_results.n_trials": 1,
     }
     if if_include_metrics:
         projection.update(
