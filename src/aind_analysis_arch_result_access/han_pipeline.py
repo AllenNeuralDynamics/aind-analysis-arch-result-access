@@ -97,17 +97,23 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     # Handle mouse and user name
     if "bpod_backup_h2o" in df.columns:
         df["subject_alias"] = np.where(
-            df["bpod_backup_h2o"].notnull(), df["bpod_backup_h2o"], df["subject_id"],
+            df["bpod_backup_h2o"].notnull(),
+            df["bpod_backup_h2o"],
+            df["subject_id"],
         )
         df["trainer"] = np.where(
-            df["bpod_backup_user_name"].notnull(), df["bpod_backup_user_name"], df["trainer"],
+            df["bpod_backup_user_name"].notnull(),
+            df["bpod_backup_user_name"],
+            df["trainer"],
         )
     else:
         df["subject_alias"] = df["subject_id"]
 
     # drop 'bpod_backup_' columns
     df.drop(
-        [col for col in df.columns if "bpod_backup_" in col], axis=1, inplace=True,
+        [col for col in df.columns if "bpod_backup_" in col],
+        axis=1,
+        inplace=True,
     )
 
     # --- Normalize trainer name ---
@@ -139,7 +145,11 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
     ] = np.nan
     df.loc[
         df["water_in_session_manual"] > 100,
-        ["water_in_session_manual", "water_in_session_total", "water_after_session", ],
+        [
+            "water_in_session_manual",
+            "water_in_session_total",
+            "water_after_session",
+        ],
     ] = np.nan
     df.loc[
         (df["duration_iti_median"] < 0) | (df["duration_iti_mean"] < 0),
@@ -274,7 +284,7 @@ def get_autotrain_table():
 
 def get_docDB_table() -> pd.DataFrame:
     """
-       Load the curriculum data from the behavior json in docDB
+    Load the curriculum data from the behavior json in docDB
     """
 
     logger.info("Loading curriculum data from docDB...")
@@ -444,7 +454,9 @@ def get_mle_model_fitting(
     # -- Retrieve records --
     print(f"Query: {filter_query}")
     records = analysis_docDB_dft.retrieve_docdb_records(
-        filter_query=filter_query, projection=projection, **paginate_settings,
+        filter_query=filter_query,
+        projection=projection,
+        **paginate_settings,
     )
 
     if not records:
@@ -611,7 +623,9 @@ def get_logistic_regression(
         model=model,
         max_threads_for_s3=max_threads_for_s3,
     )
-    df_logistic_regression = get_s3_logistic_regression_betas_batch(**download_setting,)
+    df_logistic_regression = get_s3_logistic_regression_betas_batch(
+        **download_setting,
+    )
 
     logger.info(
         f"Successfully retrieved logistic regression betas from"
@@ -631,17 +645,21 @@ def get_logistic_regression(
         ["subject_id", "session_date"]
     )
     df_fitting_metrics.columns = pd.MultiIndex.from_product(
-        [df_fitting_metrics.columns, [None]], names=["analysis_spec", "analysis_results"],
+        [df_fitting_metrics.columns, [None]],
+        names=["analysis_spec", "analysis_results"],
     )
 
     df_logistic_regression = df_logistic_regression.merge(
-        df_fitting_metrics, on=["subject_id", "session_date"], how="left",
+        df_fitting_metrics,
+        on=["subject_id", "session_date"],
+        how="left",
     )
 
     # -- Download figures --
     if if_download_figures:
         get_s3_logistic_regression_figure_batch(
-            **download_setting, download_path=download_path,
+            **download_setting,
+            download_path=download_path,
         )
 
     return df_logistic_regression
