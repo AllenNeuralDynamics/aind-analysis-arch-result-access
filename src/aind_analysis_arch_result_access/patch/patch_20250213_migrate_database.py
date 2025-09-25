@@ -13,7 +13,9 @@ dev_db_client = MetadataDbClient(
 
 # New collection
 prod_db_client = MetadataDbClient(
-    host="api.allenneuraldynamics.org", database="analysis", collection="dynamic-foraging-analysis",
+    host="api.allenneuraldynamics.org",
+    database="analysis",
+    collection="dynamic-foraging-analysis",
 )
 
 
@@ -40,9 +42,9 @@ def modify_and_migrate_records_in_batch(skip, limit):
 
         # Overwrite s3 path to the new prod bucket
         if record["status"] == "success":
-            record[
-                "s3_location"
-            ] = f"s3://aind-dynamic-foraging-analysis-prod-o5171v/{record['_id']}"
+            record["s3_location"] = (
+                f"s3://aind-dynamic-foraging-analysis-prod-o5171v/{record['_id']}"
+            )
         else:
             record["s3_location"] = None
 
