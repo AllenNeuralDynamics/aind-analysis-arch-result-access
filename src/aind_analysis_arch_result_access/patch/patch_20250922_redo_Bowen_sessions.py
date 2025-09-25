@@ -1,3 +1,8 @@
+"""
+Fix Bowen' sessions. See issue
+https://github.com/AllenNeuralDynamics/aind-analysis-arch-result-access/issues/26
+"""
+
 import logging
 import os
 import shutil
@@ -19,11 +24,14 @@ prod_db_client = MetadataDbClient(
 
 
 def get_asset_ids(csv_file="~/capsule/data/Bowen_IncompleteSessions-081225.csv"):
+    """Get asset ids to fix
+    """
     df = pd.read_csv(csv_file)
     return df.iloc[:, 0].tolist()
 
 
 def attach_assets(asset_ids):
+    """Attach to current capsule"""
     mounted = []
     logger.info(f"Attaching {len(asset_ids)} assets")
     for asset_id in asset_ids:
@@ -46,7 +54,7 @@ def attach_assets(asset_ids):
 
 
 def extract_all_nwbs(mounted):
-    # Copy the nwb file from mounted_directory/nwb to /results/extracted_Bowen_nwbs
+    """Extract all nwb files from mounted assets to /results/extracted_Bowen_nwbs"""
     output_dir = "/results/extracted_Bowen_nwbs"
     os.makedirs(output_dir, exist_ok=True)
 
@@ -74,6 +82,7 @@ def extract_all_nwbs(mounted):
 
 
 def remove_records_from_docDB(mounted):
+    """Remove records from docDB for the given mounted assets"""
 
     for this in mounted:
         # Get docDB query
