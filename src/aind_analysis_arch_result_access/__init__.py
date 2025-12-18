@@ -12,5 +12,5 @@ S3_PATH_ANALYSIS_ROOT = "s3://aind-dynamic-foraging-analysis-prod-o5171v"
 analysis_docDB_dft = MetadataDbClient(
     host="api.allenneuraldynamics.org",
     database="analysis",
-    collection="dynamic-foraging-analysis",
+    collection="dynamic-foraging-model-fitting",
 )
