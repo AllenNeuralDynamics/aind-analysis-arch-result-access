@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import entropy
 
-from aind_analysis_arch_result_access import analysis_docDB_dft
+from aind_data_access_api.document_db import MetadataDbClient
 from aind_analysis_arch_result_access.util.s3 import (
     get_s3_latent_variable_batch,
     get_s3_mle_figure_batch,
