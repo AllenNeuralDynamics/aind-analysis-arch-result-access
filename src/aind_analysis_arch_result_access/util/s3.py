@@ -13,10 +13,11 @@ import pandas as pd
 import s3fs
 from tqdm import tqdm
 
-from aind_analysis_arch_result_access import (
-    S3_PATH_ANALYSIS_ROOT,
-    S3_PATH_BONSAI_ROOT,
-)
+
+S3_PATH_BONSAI_ROOT = "s3://aind-behavior-data/foraging_nwb_bonsai_processed"
+S3_PATH_BPOD_ROOT = "s3://aind-behavior-data/foraging_nwb_bpod_processed"
+S3_PATH_ANALYSIS_ROOT = "s3://aind-dynamic-foraging-analysis-prod-o5171v"
+
 
 # The processed bucket is public
 fs = s3fs.S3FileSystem(anon=True)
