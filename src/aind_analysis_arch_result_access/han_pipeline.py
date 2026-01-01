@@ -392,6 +392,10 @@ def get_mle_model_fitting(
         "aind_analysis_arch_result_access.df_mle_model_fitting.get_mle_model_fitting. "
         "This shim will forward the call to the new implementation."
     )
+    logger.warning(
+        "Please update your imports to `from aind_analysis_arch_result_access "
+        "import get_mle_model_fitting`"
+    )
 
     # Import locally to avoid import-time cycles
     from aind_analysis_arch_result_access.df_mle_model_fitting import (
