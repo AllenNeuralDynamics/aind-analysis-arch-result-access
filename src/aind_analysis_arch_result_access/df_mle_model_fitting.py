@@ -137,6 +137,7 @@ def _build_projection(if_include_metrics: bool, is_new_format: bool = False) -> 
         fr = f"{p}.fitting_results"  # Fitting results path
         base_projection = {
             "_id": 1,
+            "S3_location": "$location",
             "nwb_name": f"${p}.nwb_name",
             "subject_id": f"${p}.subject_id",
             "session_date": f"${p}.session_date",
@@ -210,10 +211,7 @@ def _try_retrieve_records(query_builder, format_name: str, if_include_metrics: b
         for i, record in enumerate(records):
             records[i] = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in record.items()}
         
-    if records:
-        print(f"Found {len(records)} records from {format_name}!")
-        return records
-    return []
+    return records
 
 
 def get_mle_model_fitting(
@@ -384,10 +382,16 @@ def get_mle_model_fitting(
 
     # -- Some post-processing of metrics --
     if if_include_metrics:
-        # Compute cross_validation mean and std
+        # Compute cross_validation mean and std (skip if fields are missing/empty)
         for group in ["test", "fit", "test_bias_only"]:
-            df[f"prediction_accuracy_10-CV_{group}"] = df[f"prediction_accuracy_{group}"].apply(np.mean)
-            df[f"prediction_accuracy_10-CV_{group}_std"] = df[f"prediction_accuracy_{group}"].apply(np.std)
+            col_name = f"prediction_accuracy_{group}"
+            if col_name in df.columns:
+                df[f"prediction_accuracy_10-CV_{group}"] = df[col_name].apply(
+                    lambda x: np.mean(x) if x is not None and len(x) > 0 else np.nan
+                )
+                df[f"prediction_accuracy_10-CV_{group}_std"] = df[col_name].apply(
+                    lambda x: np.std(x) if x is not None and len(x) > 0 else np.nan
+                )
 
     # -- Get latent variables --
     df_success = df.query("status == 'success'")
