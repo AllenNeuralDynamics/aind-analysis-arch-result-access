@@ -119,133 +119,95 @@ def build_query(from_custom_query=None, subject_id=None, session_date=None, agen
     return build_query_old_format(from_custom_query, subject_id, session_date, agent_alias)
 
 
-def _process_new_format_results(records):
-    """Process records from new AIND Analysis Framework format."""
-    processed = []
-    for record in records:
-        # Extract data from nested structure
-        data_process = record.get("processing", {}).get("data_processes", [{}])[0]
-        output_params = data_process.get("output_parameters", {})
-        fitting_results = output_params.get("fitting_results", {})
-        additional_info = output_params.get("additional_info", {})
-        
-        processed_record = {
-            "_id": record.get("_id"),
-            "nwb_name": output_params.get("nwb_name"),
-            "subject_id": output_params.get("subject_id"),
-            "session_date": output_params.get("session_date"),
-            "status": additional_info,
-            "CO_asset_id": record.get("CO_asset_id"),
-            "analysis_results": {
-                "fit_settings": {"agent_alias": output_params.get("fit_settings", {}).get("agent_alias")},
-                "n_trials": fitting_results.get("n_trials"),
-                "log_likelihood": fitting_results.get("log_likelihood"),
-                "prediction_accuracy": fitting_results.get("prediction_accuracy"),
-                "k_model": fitting_results.get("k_model"),
-                "AIC": fitting_results.get("AIC"),
-                "BIC": fitting_results.get("BIC"),
-                "LPT": fitting_results.get("LPT"),
-                "LPT_AIC": fitting_results.get("LPT_AIC"),
-                "LPT_BIC": fitting_results.get("LPT_BIC"),
-                "cross_validation": fitting_results.get("cross_validation", {}),
-                "params": fitting_results.get("params"),
-            }
-        }
-        processed.append(processed_record)
-    return processed
-
-
-def _process_old_format_results(records):
-    """Process records from old flat format (no transformation needed)."""
-    return records
-
-
 def _build_projection(if_include_metrics: bool, is_new_format: bool = False) -> dict:
-    """Build projection dict for database query.
+    """Build projection dict for database query with field aliasing.
+    
+    Uses MongoDB's field aliasing ("new_name": "$path") to directly project
+    fields with their final flattened names, avoiding post-processing.
     
     Parameters
     ----------
     if_include_metrics : bool
         Whether to include metric fields
     is_new_format : bool
-        If True, build for new AIND format; else old format
+        If True, build for AIND Analysis Framework; else Han's prototype
     """
     if is_new_format:
-        fitting_result_path = "processing.data_processes.output_parameters.fitting_results"
+        p = "processing.data_processes.output_parameters"  # Base path
+        fr = f"{p}.fitting_results"  # Fitting results path
         base_projection = {
             "_id": 1,
-            f"{fitting_result_path}.fit_settings.agent_alias": 1,
-            "processing.data_processes.output_parameters.additional_info": 1,
-            "processing.data_processes.output_parameters.subject_id": 1,
-            "processing.data_processes.output_parameters.session_date": 1,
-            "processing.data_processes.output_parameters.nwb_name": 1,
-            f"{fitting_result_path}.n_trials": 1,
+            "nwb_name": f"${p}.nwb_name",
+            "subject_id": f"${p}.subject_id",
+            "session_date": f"${p}.session_date",
+            "status": f"${p}.additional_info",
+            "agent_alias": f"${p}.fit_settings.agent_alias",
+            "n_trials": f"${fr}.n_trials",
             "CO_asset_id": "$processing.data_processes.code.input_data.url",
         }
     else:
-        fitting_result_path = "analysis_results"
+        fr = "analysis_results"  # Fitting results path (reuse variable name)
         base_projection = {
             "_id": 1,
             "nwb_name": 1,
-            f"{fitting_result_path}.fit_settings.agent_alias": 1,
-            "status": 1,
             "subject_id": 1,
             "session_date": 1,
-            f"{fitting_result_path}.n_trials": 1,
+            "status": 1,
+            "agent_alias": f"${fr}.fit_settings.agent_alias",
+            "n_trials": f"${fr}.n_trials",
         }
     
     if if_include_metrics:
+        # Metric fields (same structure for both formats, just different base path)
         metric_fields = [
             "log_likelihood", "prediction_accuracy", "k_model",
-            "AIC", "BIC", "LPT", "LPT_AIC", "LPT_BIC",
-            "cross_validation", "params"
+            "AIC", "BIC", "LPT", "LPT_AIC", "LPT_BIC", "params"
         ]
-        base_projection.update({
-            f"{fitting_result_path}.{field}": 1 for field in metric_fields
-        })
+        cv_fields = ["prediction_accuracy_test", "prediction_accuracy_fit", "prediction_accuracy_test_bias_only"]
+        
+        base_projection.update({field: f"${fr}.{field}" for field in metric_fields})
+        base_projection.update({field: f"${fr}.cross_validation.{field}" for field in cv_fields})
     
     return base_projection
 
 
 def _try_retrieve_records(query_builder, format_name: str, if_include_metrics: bool,
                           subject_id, session_date, agent_alias, from_custom_query,
-                          paginate_settings, processor):
-    """Try to retrieve and process records from database.
+                          paginate_settings):
+    """Try to retrieve records from database.
     
     Parameters
     ----------
     query_builder : callable
         Function to build query (build_query_new_format or build_query_old_format)
     format_name : str
-        Name of format ('new format' or 'old format')
+        Name of format ('AIND Analysis Framework' or 'Han's prototype analysis pipeline')
     if_include_metrics : bool
         Whether to include metrics in projection
     subject_id, session_date, agent_alias, from_custom_query
         Query parameters
     paginate_settings : dict
         Pagination settings
-    processor : callable
-        Function to process results (_process_new_format_results or _process_old_format_results)
     
     Returns
     -------
     list
-        Processed records, or empty list if none found
+        Records, or empty list if none found
     """
     filter_query = query_builder(from_custom_query, subject_id, session_date, agent_alias)
     is_new = format_name == "AIND Analysis Framework"
     projection = _build_projection(if_include_metrics, is_new_format=is_new)
     
     print(f"Querying {format_name}: {filter_query}")
-    records_raw = analysis_docDB_dft.retrieve_docdb_records(
+    records = analysis_docDB_dft.retrieve_docdb_records(
         filter_query=filter_query,
         projection=projection,
         **paginate_settings,
     )
     
-    if records_raw:
-        print(f"Found {len(records_raw)} records from {format_name}!")
-        return processor(records_raw)
+    if records:
+        print(f"Found {len(records)} records from {format_name}!")
+        return records
     return []
 
 
@@ -385,7 +347,7 @@ def get_mle_model_fitting(
     records = _try_retrieve_records(
         build_query_new_format, "AIND Analysis Framework", if_include_metrics,
         subject_id, session_date, agent_alias, from_custom_query,
-        paginate_settings, _process_new_format_results
+        paginate_settings
     )
     
     if not records:
@@ -393,7 +355,7 @@ def get_mle_model_fitting(
         records = _try_retrieve_records(
             build_query_old_format, "Han's prototype analysis pipeline", if_include_metrics,
             subject_id, session_date, agent_alias, from_custom_query,
-            paginate_settings, _process_old_format_results
+            paginate_settings
         )
     
     if not records:
@@ -402,22 +364,8 @@ def get_mle_model_fitting(
 
     print(f"Total: {len(records)} MLE fitting records!")
 
-    # -- Reformat the records --
-    # Turn the nested json into a flat DataFrame and rename the columns, except params
-    if if_include_metrics:
-        params = [
-            record["analysis_results"].pop("params") if record["status"] == "success" else None
-            for record in records
-        ]
-    df = pd.json_normalize(records)
-    df = df.rename(
-        columns={
-            col: col.replace("analysis_results.", "")
-            .replace("cross_validation.", "")
-            .replace("fit_settings.", "")
-            for col in df.columns
-        }
-    )
+    # -- Create DataFrame (records are already flat due to projection aliasing) --
+    df = pd.DataFrame(records)
 
     # If the user specifies one certain session, and there are multiple nwbs for this session,
     # we warn the user to check nwb time stamps.
@@ -431,9 +379,6 @@ def get_mle_model_fitting(
 
     # -- Some post-processing of metrics --
     if if_include_metrics:
-        # Put in params as dict
-        df["params"] = params
-
         # Compute cross_validation mean and std
         for group in ["test", "fit", "test_bias_only"]:
             df[f"prediction_accuracy_10-CV_{group}"] = df[f"prediction_accuracy_{group}"].apply(np.mean)
@@ -467,6 +412,10 @@ def get_mle_model_fitting(
 
 
 if __name__ == "__main__":
-    # Example usage
+    # Old pipeline
+    df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24")
+    print(df.head())
+    
+    # New pipeline
     df = get_mle_model_fitting(subject_id="778869", session_date="2025-07-26")
     print(df.head())
