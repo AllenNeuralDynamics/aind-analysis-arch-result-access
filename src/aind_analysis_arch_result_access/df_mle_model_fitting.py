@@ -231,7 +231,7 @@ def _try_retrieve_records(query_builder, format_name: str, if_include_metrics: b
         Processed records, or empty list if none found
     """
     filter_query = query_builder(from_custom_query, subject_id, session_date, agent_alias)
-    is_new = format_name == "new format"
+    is_new = format_name == "AIND Analysis Framework"
     projection = _build_projection(if_include_metrics, is_new_format=is_new)
     
     print(f"Querying {format_name}: {filter_query}")
@@ -242,7 +242,7 @@ def _try_retrieve_records(query_builder, format_name: str, if_include_metrics: b
     )
     
     if records_raw:
-        print(f"Found {len(records_raw)} records in {format_name}!")
+        print(f"Found {len(records_raw)} records from {format_name}!")
         return processor(records_raw)
     return []
 
@@ -378,17 +378,17 @@ def get_mle_model_fitting(
     >>> df = get_mle_model_fitting(from_custom_query=custom_query)
     """
 
-    # Try new format first, then fall back to old format
+    # Try AIND Analysis Framework first, then fall back to Han's prototype analysis pipeline
     records = _try_retrieve_records(
-        build_query_new_format, "new format", if_include_metrics,
+        build_query_new_format, "AIND Analysis Framework", if_include_metrics,
         subject_id, session_date, agent_alias, from_custom_query,
         paginate_settings, _process_new_format_results
     )
     
     if not records:
-        print("No records in new format, trying old format...")
+        print("No records in AIND Analysis Framework, trying Han's prototype analysis pipeline...")
         records = _try_retrieve_records(
-            build_query_old_format, "old format", if_include_metrics,
+            build_query_old_format, "Han's prototype analysis pipeline", if_include_metrics,
             subject_id, session_date, agent_alias, from_custom_query,
             paginate_settings, _process_old_format_results
         )
