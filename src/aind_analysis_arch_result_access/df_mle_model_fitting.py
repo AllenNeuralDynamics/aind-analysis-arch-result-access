@@ -141,7 +141,7 @@ def _build_projection(if_include_metrics: bool, is_new_format: bool = False) -> 
             "subject_id": f"${p}.subject_id",
             "session_date": f"${p}.session_date",
             "status": f"${p}.additional_info",
-            "agent_alias": f"${p}.fit_settings.agent_alias",
+            "agent_alias": f"${fr}.fit_settings.agent_alias",
             "n_trials": f"${fr}.n_trials",
             "CO_asset_id": "$processing.data_processes.code.input_data.url",
         }
@@ -205,6 +205,13 @@ def _try_retrieve_records(query_builder, format_name: str, if_include_metrics: b
         **paginate_settings,
     )
     
+    # Strip out the [] for new records (because they were from processing.data_processed[0])
+    if is_new:
+        for i, record in enumerate(records):
+            records[i] = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in record.items()}
+        
+    records.append(records[-1])
+
     if records:
         print(f"Found {len(records)} records from {format_name}!")
         return records
@@ -413,8 +420,8 @@ def get_mle_model_fitting(
 
 if __name__ == "__main__":
     # Old pipeline
-    df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24")
-    print(df.head())
+    # df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24")
+    # print(df.head())
     
     # New pipeline
     df = get_mle_model_fitting(subject_id="778869", session_date="2025-07-26")
