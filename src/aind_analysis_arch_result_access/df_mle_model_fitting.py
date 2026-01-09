@@ -58,7 +58,7 @@ def build_query_new_format(from_custom_query=None, subject_id=None, session_date
     """Build query for new AIND Analysis Framework format."""
     filter_query = {
         "processing.data_processes.code.parameters.analysis_name": "MLE fitting",
-        "processing.data_processes.code.parameters.analysis_ver": "aind-analysis-framework v0.1",
+        "processing.data_processes.code.parameters.analysis_tag": "aind-analysis-framework v0.1",
     }
 
     # If custom query is provided, use it exclusively
@@ -131,10 +131,11 @@ def _process_new_format_results(records):
         
         processed_record = {
             "_id": record.get("_id"),
-            "nwb_name": record.get("name"),
+            "nwb_name": output_params.get("nwb_name"),
             "subject_id": output_params.get("subject_id"),
             "session_date": output_params.get("session_date"),
-            "status": additional_info.get("status"),
+            "status": additional_info,
+            "CO_asset_id": record.get("CO_asset_id"),
             "analysis_results": {
                 "fit_settings": {"agent_alias": output_params.get("fit_settings", {}).get("agent_alias")},
                 "n_trials": fitting_results.get("n_trials"),
@@ -170,27 +171,28 @@ def _build_projection(if_include_metrics: bool, is_new_format: bool = False) -> 
         If True, build for new AIND format; else old format
     """
     if is_new_format:
+        fitting_result_path = "processing.data_processes.output_parameters.fitting_results"
         base_projection = {
             "_id": 1,
-            "name": 1,
-            "processing.data_processes.output_parameters.fit_settings.agent_alias": 1,
-            "processing.data_processes.output_parameters.additional_info.status": 1,
+            f"{fitting_result_path}.fit_settings.agent_alias": 1,
+            "processing.data_processes.output_parameters.additional_info": 1,
             "processing.data_processes.output_parameters.subject_id": 1,
             "processing.data_processes.output_parameters.session_date": 1,
-            "processing.data_processes.output_parameters.fitting_results.n_trials": 1,
+            "processing.data_processes.output_parameters.nwb_name": 1,
+            f"{fitting_result_path}.n_trials": 1,
+            "CO_asset_id": "$processing.data_processes.code.input_data.url",
         }
-        fitting_result_path = "processing.data_processes.output_parameters.fitting_results."
     else:
+        fitting_result_path = "analysis_results"
         base_projection = {
             "_id": 1,
             "nwb_name": 1,
-            "analysis_results.fit_settings.agent_alias": 1,
+            f"{fitting_result_path}.fit_settings.agent_alias": 1,
             "status": 1,
             "subject_id": 1,
             "session_date": 1,
-            "analysis_results.n_trials": 1,
+            f"{fitting_result_path}.n_trials": 1,
         }
-        fitting_result_path = "analysis_results."
     
     if if_include_metrics:
         metric_fields = [
@@ -199,7 +201,7 @@ def _build_projection(if_include_metrics: bool, is_new_format: bool = False) -> 
             "cross_validation", "params"
         ]
         base_projection.update({
-            f"{fitting_result_path}{field}": 1 for field in metric_fields
+            f"{fitting_result_path}.{field}": 1 for field in metric_fields
         })
     
     return base_projection
@@ -367,7 +369,8 @@ def get_mle_model_fitting(
     Get results for a specific model agent and download figures:
     
     >>> df = get_mle_model_fitting(
-    ...     agent_alias="RL_model_v2",
+    ...     subject_id="730945",
+    ...     agent_alias="QLearning_L2F1_CK1_softmax",
     ...     if_download_figures=True,
     ...     download_path="./my_figures/"
     ... )
@@ -461,3 +464,9 @@ def get_mle_model_fitting(
         )
 
     return df
+
+
+if __name__ == "__main__":
+    # Example usage
+    df = get_mle_model_fitting(subject_id="778869", session_date="2025-07-26")
+    print(df.head())
