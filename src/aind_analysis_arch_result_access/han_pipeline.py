@@ -31,6 +31,7 @@ from aind_analysis_arch_result_access.util.s3 import (
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+
 def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFrame:
     """
     Load the session table from Han's pipeline and re-build the master table (almost) the same one

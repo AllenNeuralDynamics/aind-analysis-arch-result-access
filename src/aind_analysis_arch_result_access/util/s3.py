@@ -51,7 +51,7 @@ def get_s3_json(s3_path):
 
 def get_s3_latent_variable_batch(ids, s3_root_list, max_threads_for_s3=10):
     """Get latent variables from s3 for a batch of ids
-    
+
     Parameters
     ----------
     ids : list
@@ -74,7 +74,7 @@ def get_s3_latent_variable_batch(ids, s3_root_list, max_threads_for_s3=10):
 
 def get_s3_latent_variable(s3_root):
     """Get latent variables from s3 for a result folder
-    
+
     Parameters
     ----------
     s3_root : str
@@ -84,7 +84,11 @@ def get_s3_latent_variable(s3_root):
     path = s3_root if s3_root.endswith("/") else f"{s3_root}/"
 
     # -- Try different result json names for back compatibility --
-    possible_json_names = ["original_results_mle_fitting.json", "docDB_mle_fitting.json", "docDB_record.json"]
+    possible_json_names = [
+        "original_results_mle_fitting.json",
+        "docDB_mle_fitting.json",
+        "docDB_record.json",
+    ]
     for json_name in possible_json_names:
         if fs.exists(f"{path}{json_name}"):
             break
@@ -97,7 +101,9 @@ def get_s3_latent_variable(s3_root):
     result_json = get_s3_json(f"{path}{json_name}")
 
     # Get the latent variables
-    result_json = result_json if "analysis_results" not in result_json else result_json["analysis_results"]
+    result_json = (
+        result_json if "analysis_results" not in result_json else result_json["analysis_results"]
+    )
     latent_variable = result_json.get("fitted_latent_variables", {})
 
     if "q_value" not in latent_variable:
@@ -108,12 +114,8 @@ def get_s3_latent_variable(s3_root):
     # In the model fitting output, len(choice) = len(reward) = n_trials,
     # but len(q_value) = n_trials + 1, because it includes a final update after the last choice.
     # When computing RPE, we need to use the q_value before the choice on the chosen side.
-    choice = np.array(result_json.get("fit_settings", {}).get("fit_choice_history", [])).astype(
-        int
-    )
-    reward = np.array(result_json.get("fit_settings", {}).get("fit_reward_history", [])).astype(
-        int
-    )
+    choice = np.array(result_json.get("fit_settings", {}).get("fit_choice_history", [])).astype(int)
+    reward = np.array(result_json.get("fit_settings", {}).get("fit_reward_history", [])).astype(int)
     q_value_before_choice = np.array(latent_variable["q_value"])[:, :-1]  # Note the :-1 here
     q_value_chosen = q_value_before_choice[choice, np.arange(len(choice))]
     latent_variable["rpe"] = reward - q_value_chosen
@@ -121,9 +123,11 @@ def get_s3_latent_variable(s3_root):
     return latent_variable
 
 
-def get_s3_mle_figure_batch(ids, f_names, s3_root_list, download_path="./results/mle_figures/", max_threads_for_s3=10):
+def get_s3_mle_figure_batch(
+    ids, f_names, s3_root_list, download_path="./results/mle_figures/", max_threads_for_s3=10
+):
     """Download MLE figures from s3 for a batch of ids
-    
+
     Parameters
     ----------
     ids : list
@@ -150,7 +154,7 @@ def get_s3_mle_figure_batch(ids, f_names, s3_root_list, download_path="./results
 
 def get_s3_mle_figure(s3_root, f_name, download_path):
     """Download MLE figures from s3 for a result folder
-    
+
     Parameters
     ----------
     s3_root : str
@@ -161,7 +165,7 @@ def get_s3_mle_figure(s3_root, f_name, download_path):
         Local directory path for download
     """
     file_name_on_s3 = "fitted_session.png"
-    
+
     # -- s3_root is the full result folder path --
     s3_file_path = s3_root if s3_root.endswith("/") else f"{s3_root}/"
     s3_file_path = f"{s3_file_path}{file_name_on_s3}"
