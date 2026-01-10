@@ -445,7 +445,11 @@ def get_mle_model_fitting(
             .drop_duplicates(subset=["nwb_name", "agent_alias"], keep="first")
             .reset_index(drop=True)
         )
-        print(f"--- After filtering for most recent versions: {len(df)} records ---")
+        n_aind_framework = sum(df.pipeline_source == "aind analysis framework")
+        n_han_pipeline = sum(df.pipeline_source == "han's analysis pipeline")
+        print(f"--- After filtering for most recent versions: {len(df)} records  ---")
+        print(f"    AIND Analysis Framework: {n_aind_framework}")
+        print(f"    Han's prototype analysis pipeline: {n_han_pipeline}")
 
     # Add S3_location for old pipeline records (new pipeline already has it from database)
     if "S3_location" not in df.columns:
