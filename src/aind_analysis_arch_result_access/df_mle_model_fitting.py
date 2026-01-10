@@ -363,6 +363,7 @@ def get_mle_model_fitting(
     # Create DataFrames from records
     if records_new:
         df_new = pd.DataFrame(records_new)
+        df_new["db_source"] = "aind analysis framework"
         print(f"Found {len(df_new)} records in AIND Analysis Framework")
     else:
         df_new = pd.DataFrame()
@@ -370,6 +371,7 @@ def get_mle_model_fitting(
     
     if records_old:
         df_old = pd.DataFrame(records_old)
+        df_old["db_source"] = "han's old pipeline"
         print(f"Found {len(df_old)} records in Han's prototype analysis pipeline")
     else:
         df_old = pd.DataFrame()
