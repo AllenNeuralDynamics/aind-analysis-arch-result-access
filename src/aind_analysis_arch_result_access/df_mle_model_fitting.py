@@ -138,13 +138,15 @@ def _build_projection(if_include_metrics: bool, is_new_format: bool = False) -> 
         fr = f"{p}.fitting_results"  # Fitting results path
         base_projection = {
             "_id": 1,
-            "S3_location": "$location",
             "nwb_name": f"${p}.nwb_name",
+            "analysis_time": f"$processing.data_processes.end_date_time",
             "subject_id": f"${p}.subject_id",
             "session_date": f"${p}.session_date",
             "status": f"${p}.additional_info",
             "agent_alias": f"${fr}.fit_settings.agent_alias",
             "n_trials": f"${fr}.n_trials",
+
+            "S3_location": "$location",
             "CO_asset_id": "$processing.data_processes.code.input_data.url",
         }
     else:
@@ -152,6 +154,7 @@ def _build_projection(if_include_metrics: bool, is_new_format: bool = False) -> 
         base_projection = {
             "_id": 1,
             "nwb_name": 1,
+            "analysis_time": "$analysis_datetime",
             "subject_id": 1,
             "session_date": 1,
             "status": 1,
@@ -220,6 +223,7 @@ def get_mle_model_fitting(
     session_date: str = None,
     agent_alias: str = None,
     from_custom_query: dict = None,
+    only_recent_version: bool = True,
     if_include_metrics: bool = True,
     if_include_latent_variables: bool = True,
     if_download_figures: bool = False,
@@ -251,6 +255,9 @@ def get_mle_model_fitting(
     from_custom_query : dict, optional
         A custom MongoDB query dictionary that overrides all other query parameters. 
         If provided, subject_id, session_date, and agent_alias are ignored.
+    only_recent_version : bool, default=True
+        If True, keeps only the most recent version when multiple records have 
+        the same nwb_name and agent_alias.
     if_include_metrics : bool, default=True
         If True, includes model metrics such as log_likelihood, prediction_accuracy, 
         AIC, BIC, LPT scores, cross-validation results, and fitted parameters in 
@@ -347,7 +354,7 @@ def get_mle_model_fitting(
     >>> df = get_mle_model_fitting(from_custom_query=custom_query)
     """
 
-    # Fetch from both AIND Analysis Framework and Han's prototype analysis pipeline
+    # -- Fetch from both AIND Analysis Framework and Han's prototype analysis pipeline --
     records_new = _try_retrieve_records(
         build_query_new_format, "AIND Analysis Framework", if_include_metrics,
         subject_id, session_date, agent_alias, from_custom_query,
@@ -363,7 +370,7 @@ def get_mle_model_fitting(
     # Create DataFrames from records
     if records_new:
         df_new = pd.DataFrame(records_new)
-        df_new["db_source"] = "aind analysis framework"
+        df_new["pipeline_source"] = "aind analysis framework"
         print(f"Found {len(df_new)} records in AIND Analysis Framework")
     else:
         df_new = pd.DataFrame()
@@ -371,7 +378,7 @@ def get_mle_model_fitting(
     
     if records_old:
         df_old = pd.DataFrame(records_old)
-        df_old["db_source"] = "han's old pipeline"
+        df_old["pipeline_source"] = "han's analysis pipeline"
         print(f"Found {len(df_old)} records in Han's prototype analysis pipeline")
     else:
         df_old = pd.DataFrame()
@@ -384,6 +391,23 @@ def get_mle_model_fitting(
     
     df = pd.concat([df_new, df_old], ignore_index=True)
     print(f"Total: {len(df)} MLE fitting records!")
+
+    # -- Filter for successful fittings early --
+    df_success = df.query("status == 'success'")
+    df_failed = df.query("status != 'success'")
+    print(f"Found {len(df_success)} successful MLE fitting, {len(df_failed)} skipped")
+    
+    # Use only successful fittings for further processing
+    df = df_success
+
+    # -- Only keep the recent version if requested --
+    if only_recent_version and len(df) > 0:
+        # Sort by analysis_time in descending order (most recent first) and keep the first occurrence
+        df = df.sort_values('analysis_time', ascending=False).drop_duplicates(
+            subset=['nwb_name', 'agent_alias'], 
+            keep='first'
+        ).reset_index(drop=True)
+        print(f"After filtering for recent versions: {len(df)} records")
     
     # Add S3_location for old pipeline records (new pipeline already has it from database)
     if "S3_location" not in df.columns:
@@ -394,7 +418,7 @@ def get_mle_model_fitting(
             lambda id: f"{S3_PATH_ANALYSIS_ROOT}/{id}"
         )
 
-    # If the user specifies one certain session, and there are multiple nwbs for this session,
+    # If the user specifies one certain session, and there are still multiple nwbs for this session,
     # we warn the user to check nwb time stamps.
     if subject_id and session_date and df.agent_alias.duplicated().any():
         print(
@@ -405,24 +429,21 @@ def get_mle_model_fitting(
         )
 
     # -- Get latent variables --
-    df_success = df.query("status == 'success'")
-    print(f"Found {len(df_success)} successful MLE fitting!")
-    
-    if if_include_latent_variables and len(df_success):
-        s3_root_list = df_success["S3_location"].tolist()
-        latents = get_s3_latent_variable_batch(df_success._id, s3_root_list=s3_root_list, max_threads_for_s3=max_threads_for_s3)
+    if if_include_latent_variables and len(df):
+        s3_root_list = df["S3_location"].tolist()
+        latents = get_s3_latent_variable_batch(df._id, s3_root_list=s3_root_list, max_threads_for_s3=max_threads_for_s3)
         latents = _add_qvalue_spread(latents)
         df = df.merge(pd.DataFrame(latents), on="_id", how="left")
 
     # -- Download figures --
-    if if_download_figures and len(df_success):
-        s3_root_list = df_success["S3_location"].tolist()
+    if if_download_figures and len(df):
+        s3_root_list = df["S3_location"].tolist()
         f_names = (
             df["nwb_name"].map(lambda x: x.replace(".nwb", "") if x.endswith(".nwb") else x)
             + "_" + df.agent_alias + "_" + df._id.map(lambda x: x[:10]) + ".png"
         )
         get_s3_mle_figure_batch(
-            ids=df_success._id,
+            ids=df._id,
             f_names=f_names,
             s3_root_list=s3_root_list,
             download_path=download_path,
