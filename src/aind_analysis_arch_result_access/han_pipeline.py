@@ -21,10 +21,8 @@ from aind_analysis_arch_result_access.util.s3 import (
     S3_PATH_BONSAI_ROOT,
     S3_PATH_BPOD_ROOT,
     get_s3_json,
-    get_s3_latent_variable_batch,
     get_s3_logistic_regression_betas_batch,
     get_s3_logistic_regression_figure_batch,
-    get_s3_mle_figure_batch,
     get_s3_pkl,
 )
 

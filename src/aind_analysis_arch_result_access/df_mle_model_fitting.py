@@ -5,7 +5,6 @@ so callers can import it directly from the package.
 """
 
 import logging
-from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -144,7 +143,7 @@ def _build_projection(if_include_metrics: bool, is_new_format: bool = False) -> 
         base_projection = {
             "_id": 1,
             "nwb_name": f"${p}.nwb_name",
-            "analysis_time": f"$processing.data_processes.end_date_time",
+            "analysis_time": "$processing.data_processes.end_date_time",
             "subject_id": f"${p}.subject_id",
             "session_date": f"${p}.session_date",
             "status": f"${p}.additional_info",
@@ -430,7 +429,8 @@ def get_mle_model_fitting(
     df_success = df.query("status == 'success'")
     df_failed = df.query("status != 'success'")
     print(
-        f"--- After filtering for successful fittings: {len(df_success)} records ({len(df_failed)} skipped) ---"
+        f"--- After filtering for successful fittings: {len(df_success)} records "
+        f"({len(df_failed)} skipped) ---"
     )
 
     # Use only successful fittings for further processing
@@ -438,7 +438,8 @@ def get_mle_model_fitting(
 
     # -- Only keep the recent version if requested --
     if only_recent_version and len(df) > 0:
-        # Sort by analysis_time in descending order (most recent first) and keep the first occurrence
+        # Sort by analysis_time in descending order (most recent first) and keep
+        # the first occurrence
         df = (
             df.sort_values("analysis_time", ascending=False)
             .drop_duplicates(subset=["nwb_name", "agent_alias"], keep="first")
@@ -497,7 +498,8 @@ def get_mle_model_fitting(
 
 if __name__ == "__main__":
     # Old pipeline
-    # df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24", if_download_figures=True)
+    # df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24",
+    # if_download_figures=True)
     # print(df)
 
     # New pipeline
