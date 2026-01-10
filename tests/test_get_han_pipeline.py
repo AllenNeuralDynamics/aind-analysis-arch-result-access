@@ -60,7 +60,8 @@ class TestGetMLEModelFitting(unittest.TestCase):
     """Get MLE model fitting results"""
 
     def test_get_mle_model_fitting_old_pipeline(self):
-        """Test get MLE model fitting results from old pipeline (subject 730945, session 2024-10-24)."""
+        """Test get MLE model fitting results from old pipeline
+        (subject 730945, session 2024-10-24)."""
 
         df = get_mle_model_fitting(
             subject_id="730945",
@@ -85,7 +86,8 @@ class TestGetMLEModelFitting(unittest.TestCase):
         print(df.columns)
 
     def test_get_mle_model_fitting_new_pipeline(self):
-        """Test get MLE model fitting results from new pipeline (subject 778869, session 2025-07-26)."""
+        """Test get MLE model fitting results from new pipeline
+        (subject 778869, session 2025-07-26)."""
 
         df = get_mle_model_fitting(
             subject_id="778869",
@@ -172,7 +174,8 @@ class TestGetMLEModelFitting(unittest.TestCase):
         metrics_columns = ["BIC", "AIC", "log_likelihood", "prediction_accuracy"]
         for col in metrics_columns:
             if col in df.columns:
-                # It's okay if some metrics are in base query, but latent_variable should not be there
+                # It's okay if some metrics are in base query, but
+                # latent_variable should not be there
                 pass
         self.assertNotIn(
             "latent_variable",
@@ -181,7 +184,8 @@ class TestGetMLEModelFitting(unittest.TestCase):
         )
 
     def test_get_mle_without_latent_variables(self):
-        """Test get MLE model fitting without latent variables (if_include_latent_variables=False)."""
+        """Test get MLE model fitting without latent variables
+        (if_include_latent_variables=False)."""
 
         df = get_mle_model_fitting(
             subject_id="778869",
