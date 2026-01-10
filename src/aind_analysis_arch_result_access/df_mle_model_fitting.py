@@ -9,13 +9,13 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
+from aind_data_access_api.document_db import MetadataDbClient
 from scipy.stats import entropy
 
-from aind_data_access_api.document_db import MetadataDbClient
 from aind_analysis_arch_result_access.util.s3 import (
+    S3_PATH_ANALYSIS_ROOT,
     get_s3_latent_variable_batch,
     get_s3_mle_figure_batch,
-    S3_PATH_ANALYSIS_ROOT,
 )
 
 logger = logging.getLogger(__name__)
