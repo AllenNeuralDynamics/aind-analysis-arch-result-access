@@ -395,7 +395,7 @@ def get_mle_model_fitting(
     # -- Filter for successful fittings early --
     df_success = df.query("status == 'success'")
     df_failed = df.query("status != 'success'")
-    print(f"Found {len(df_success)} successful MLE fitting, {len(df_failed)} skipped")
+    print(f"--- After filtering for successful fittings: {len(df_success)} records ({len(df_failed)} skipped) ---")
     
     # Use only successful fittings for further processing
     df = df_success
@@ -407,7 +407,7 @@ def get_mle_model_fitting(
             subset=['nwb_name', 'agent_alias'], 
             keep='first'
         ).reset_index(drop=True)
-        print(f"After filtering for recent versions: {len(df)} records")
+        print(f"--- After filtering for most recent versions: {len(df)} records ---")
     
     # Add S3_location for old pipeline records (new pipeline already has it from database)
     if "S3_location" not in df.columns:
@@ -422,10 +422,9 @@ def get_mle_model_fitting(
     # we warn the user to check nwb time stamps.
     if subject_id and session_date and df.agent_alias.duplicated().any():
         print(
-            "Duplicated agent_alias!\n"
-            "There are multiple nwbs for this session:\n"
-            f"{df.nwb_name.unique()}\n"
-            "You should check the time stamps to select the one you want."
+            "WARNING: Duplicated records for the same session and agent_alias!\n"
+            "         You should check the nwb_name, n_trials, or pipeline_source\n"
+            "         to select the ones you want."
         )
 
     # -- Get latent variables --
@@ -457,7 +456,10 @@ if __name__ == "__main__":
     # Old pipeline
     # df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24", if_download_figures=True)
     # print(df)
-    
+
     # New pipeline
-    df = get_mle_model_fitting(subject_id="778869", session_date="2025-07-26", if_download_figures=True)
+    df = get_mle_model_fitting(
+        subject_id="778869", session_date="2025-07-26", if_download_figures=True,
+        only_recent_version=True
+    )
     print(df)
