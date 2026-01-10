@@ -10,7 +10,6 @@ from typing import Literal
 import aind_data_access_api.document_db
 import numpy as np
 import pandas as pd
-from scipy.stats import entropy
 
 from aind_analysis_arch_result_access.util.reformat import (
     curriculum_ver_mapper,

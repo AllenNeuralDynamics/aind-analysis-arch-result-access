@@ -52,6 +52,7 @@ class TestGetMasterSessionTable(unittest.TestCase):
         print(f"Latest session: {df['session_date'].max()}")
         print(df.head())
 
+
 class TestGetLogisticRegression(unittest.TestCase):
     """Get logistic regression results"""
 
@@ -123,6 +124,7 @@ class TestGetLogisticRegression(unittest.TestCase):
                 if_download_figures=False,
             )
         self.assertIn("subject_id and session_date", str(context.exception))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
