@@ -15,6 +15,7 @@ from aind_data_access_api.document_db import MetadataDbClient
 from aind_analysis_arch_result_access.util.s3 import (
     get_s3_latent_variable_batch,
     get_s3_mle_figure_batch,
+    S3_PATH_ANALYSIS_ROOT,
 )
 
 logger = logging.getLogger(__name__)
@@ -380,39 +381,43 @@ def get_mle_model_fitting(
             "You should check the time stamps to select the one you want."
         )
 
-    # -- Some post-processing of metrics --
-    if if_include_metrics:
-        # Compute cross_validation mean and std (skip if fields are missing/empty)
-        for group in ["test", "fit", "test_bias_only"]:
-            col_name = f"prediction_accuracy_{group}"
-            if col_name in df.columns:
-                df[f"prediction_accuracy_10-CV_{group}"] = df[col_name].apply(
-                    lambda x: np.mean(x) if x is not None and len(x) > 0 else np.nan
-                )
-                df[f"prediction_accuracy_10-CV_{group}_std"] = df[col_name].apply(
-                    lambda x: np.std(x) if x is not None and len(x) > 0 else np.nan
-                )
 
     # -- Get latent variables --
     df_success = df.query("status == 'success'")
     print(f"Found {len(df_success)} successful MLE fitting!")
     
     if if_include_latent_variables and len(df_success):
-        latents = get_s3_latent_variable_batch(df_success._id, max_threads_for_s3=max_threads_for_s3)
+        # Determine if using new format (has S3_location) or old format
+        if "S3_location" in df_success.columns:
+            # New pipeline: use S3_location from database
+            s3_root_list = df_success["S3_location"].tolist()
+        else:
+            # Old pipeline: construct from S3_PATH_ANALYSIS_ROOT and document ID
+            s3_root_list = [f"{S3_PATH_ANALYSIS_ROOT}/{id}" for id in df_success._id]
+        
+        latents = get_s3_latent_variable_batch(df_success._id, s3_root_list=s3_root_list, max_threads_for_s3=max_threads_for_s3)
         latents = _add_qvalue_spread(latents)
         df = df.merge(pd.DataFrame(latents), on="_id", how="left")
 
     # -- Download figures --
     if if_download_figures and len(df_success):
+        # Determine if using new format (has S3_location) or old format
+        if "S3_location" in df_success.columns:
+            # New pipeline: use S3_location from database
+            s3_root_list = df_success["S3_location"].tolist()
+        else:
+            # Old pipeline: construct from S3_PATH_ANALYSIS_ROOT and document ID
+            s3_root_list = [f"{S3_PATH_ANALYSIS_ROOT}/{id}" for id in df_success._id]
+        
         # Handle both 'nwb_name' (old format) and 'name' (new format)
-        name_col = "nwb_name" if "nwb_name" in df.columns else "name"
         f_names = (
-            df[name_col].map(lambda x: x.replace(".nwb", "") if x.endswith(".nwb") else x)
+            df["nwb_name"].map(lambda x: x.replace(".nwb", "") if x.endswith(".nwb") else x)
             + "_" + df.agent_alias + "_" + df._id.map(lambda x: x[:10]) + ".png"
         )
         get_s3_mle_figure_batch(
             ids=df_success._id,
             f_names=f_names,
+            s3_root_list=s3_root_list,
             download_path=download_path,
             max_threads_for_s3=max_threads_for_s3,
         )
@@ -422,9 +427,9 @@ def get_mle_model_fitting(
 
 if __name__ == "__main__":
     # Old pipeline
-    # df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24")
-    # print(df.head())
+    df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24", if_download_figures=True)
+    print(df)
     
     # New pipeline
-    df = get_mle_model_fitting(subject_id="778869", session_date="2025-07-26")
-    print(df.head())
+    # df = get_mle_model_fitting(subject_id="778869", session_date="2025-07-26", if_download_figures=True)
+    # print(df)
