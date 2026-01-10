@@ -347,29 +347,50 @@ def get_mle_model_fitting(
     >>> df = get_mle_model_fitting(from_custom_query=custom_query)
     """
 
-    # Try AIND Analysis Framework first, then fall back to Han's prototype analysis pipeline
-    records = _try_retrieve_records(
+    # Fetch from both AIND Analysis Framework and Han's prototype analysis pipeline
+    records_new = _try_retrieve_records(
         build_query_new_format, "AIND Analysis Framework", if_include_metrics,
         subject_id, session_date, agent_alias, from_custom_query,
         paginate_settings
     )
     
-    if not records:
-        print("No records in AIND Analysis Framework, trying Han's prototype analysis pipeline...")
-        records = _try_retrieve_records(
-            build_query_old_format, "Han's prototype analysis pipeline", if_include_metrics,
-            subject_id, session_date, agent_alias, from_custom_query,
-            paginate_settings
-        )
+    records_old = _try_retrieve_records(
+        build_query_old_format, "Han's prototype analysis pipeline", if_include_metrics,
+        subject_id, session_date, agent_alias, from_custom_query,
+        paginate_settings
+    )
     
-    if not records:
+    # Create DataFrames from records
+    if records_new:
+        df_new = pd.DataFrame(records_new)
+        print(f"Found {len(df_new)} records in AIND Analysis Framework")
+    else:
+        df_new = pd.DataFrame()
+        print("No records in AIND Analysis Framework")
+    
+    if records_old:
+        df_old = pd.DataFrame(records_old)
+        print(f"Found {len(df_old)} records in Han's prototype analysis pipeline")
+    else:
+        df_old = pd.DataFrame()
+        print("No records in Han's prototype analysis pipeline")
+    
+    # Concatenate both DataFrames
+    if df_new.empty and df_old.empty:
         print(f"No MLE fitting available for {subject_id} on {session_date}")
         return None
-
-    print(f"Total: {len(records)} MLE fitting records!")
-
-    # -- Create DataFrame (records are already flat due to projection aliasing) --
-    df = pd.DataFrame(records)
+    
+    df = pd.concat([df_new, df_old], ignore_index=True)
+    print(f"Total: {len(df)} MLE fitting records!")
+    
+    # Add S3_location for old pipeline records (new pipeline already has it from database)
+    if "S3_location" not in df.columns:
+        df["S3_location"] = df["_id"].apply(lambda id: f"{S3_PATH_ANALYSIS_ROOT}/{id}")
+    else:
+        # Fill missing S3_location values for old pipeline records
+        df.loc[df["S3_location"].isna(), "S3_location"] = df.loc[df["S3_location"].isna(), "_id"].apply(
+            lambda id: f"{S3_PATH_ANALYSIS_ROOT}/{id}"
+        )
 
     # If the user specifies one certain session, and there are multiple nwbs for this session,
     # we warn the user to check nwb time stamps.
@@ -381,35 +402,19 @@ def get_mle_model_fitting(
             "You should check the time stamps to select the one you want."
         )
 
-
     # -- Get latent variables --
     df_success = df.query("status == 'success'")
     print(f"Found {len(df_success)} successful MLE fitting!")
     
     if if_include_latent_variables and len(df_success):
-        # Determine if using new format (has S3_location) or old format
-        if "S3_location" in df_success.columns:
-            # New pipeline: use S3_location from database
-            s3_root_list = df_success["S3_location"].tolist()
-        else:
-            # Old pipeline: construct from S3_PATH_ANALYSIS_ROOT and document ID
-            s3_root_list = [f"{S3_PATH_ANALYSIS_ROOT}/{id}" for id in df_success._id]
-        
+        s3_root_list = df_success["S3_location"].tolist()
         latents = get_s3_latent_variable_batch(df_success._id, s3_root_list=s3_root_list, max_threads_for_s3=max_threads_for_s3)
         latents = _add_qvalue_spread(latents)
         df = df.merge(pd.DataFrame(latents), on="_id", how="left")
 
     # -- Download figures --
     if if_download_figures and len(df_success):
-        # Determine if using new format (has S3_location) or old format
-        if "S3_location" in df_success.columns:
-            # New pipeline: use S3_location from database
-            s3_root_list = df_success["S3_location"].tolist()
-        else:
-            # Old pipeline: construct from S3_PATH_ANALYSIS_ROOT and document ID
-            s3_root_list = [f"{S3_PATH_ANALYSIS_ROOT}/{id}" for id in df_success._id]
-        
-        # Handle both 'nwb_name' (old format) and 'name' (new format)
+        s3_root_list = df_success["S3_location"].tolist()
         f_names = (
             df["nwb_name"].map(lambda x: x.replace(".nwb", "") if x.endswith(".nwb") else x)
             + "_" + df.agent_alias + "_" + df._id.map(lambda x: x[:10]) + ".png"
@@ -427,9 +432,9 @@ def get_mle_model_fitting(
 
 if __name__ == "__main__":
     # Old pipeline
-    df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24", if_download_figures=True)
-    print(df)
+    # df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24", if_download_figures=True)
+    # print(df)
     
     # New pipeline
-    # df = get_mle_model_fitting(subject_id="778869", session_date="2025-07-26", if_download_figures=True)
-    # print(df)
+    df = get_mle_model_fitting(subject_id="778869", session_date="2025-07-26", if_download_figures=True)
+    print(df)
