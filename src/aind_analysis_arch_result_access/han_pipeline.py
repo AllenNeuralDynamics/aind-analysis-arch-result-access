@@ -339,32 +339,6 @@ def get_docDB_table() -> pd.DataFrame:
     return pd.DataFrame(df_dict)
 
 
-def add_qvalue_spread(latents):
-    """
-    For a list of latents, compute the uniform ratio of q_values for each.
-    Returns a list of uniform ratios (np.nan if q_value is missing).
-    """
-    num_bins = 100
-    max_entropy = np.log2(num_bins)
-    for latent in latents:
-        if latent is None or latent.get("latent_variables") is None:
-            latent["qvalue_spread"] = np.nan
-            continue
-        q_vals = latent["latent_variables"].get("q_value", None)
-        if q_vals is None:
-            latent["qvalue_spread"] = np.nan
-            continue
-        hist, _ = np.histogram(q_vals, bins=num_bins, range=(0, 1))
-        prob = hist / np.sum(hist) if np.sum(hist) > 0 else np.zeros_like(hist)
-        prob = prob[prob > 0]
-        if len(prob) == 0:
-            latent["qvalue_spread"] = np.nan
-            continue
-        uniform_ratio = entropy(prob, base=2) / max_entropy
-        latent["qvalue_spread"] = uniform_ratio
-    return latents
-
-
 def get_mle_model_fitting(
     subject_id: str = None,
     session_date: str = None,
@@ -413,36 +387,6 @@ def get_mle_model_fitting(
         paginate_settings=paginate_settings,
         max_threads_for_s3=max_threads_for_s3,
     )
-
-
-def build_query(from_custom_query=None, subject_id=None, session_date=None, agent_alias=None):
-    """Build query for MLE fitting"""
-    filter_query = {
-        "analysis_spec.analysis_name": "MLE fitting",
-        "analysis_spec.analysis_ver": "first version @ 0.10.0",
-    }
-
-    # If custom query is provided, use it exclusively
-    if from_custom_query:
-        filter_query.update(from_custom_query)
-        return filter_query
-
-    # Ensure at least one of the parameters is provided
-    if not any([subject_id, session_date, agent_alias]):
-        raise ValueError(
-            "You must provide at least one of subject_id, session_date, "
-            "agent_alias, or from_custom_query!"
-        )
-
-    # Build a dictionary with only provided keys
-    standard_query = {
-        "subject_id": subject_id,
-        "session_date": session_date,
-        "analysis_results.fit_settings.agent_alias": agent_alias,
-    }
-    # Update filter_query only with non-None values
-    filter_query.update({k: v for k, v in standard_query.items() if v is not None})
-    return filter_query
 
 
 def get_logistic_regression(
