@@ -24,8 +24,7 @@ prod_db_client = MetadataDbClient(
 
 
 def get_asset_ids(csv_file="~/capsule/data/Bowen_IncompleteSessions-081225.csv"):
-    """Get asset ids to fix
-    """
+    """Get asset ids to fix"""
     df = pd.read_csv(csv_file)
     return df.iloc[:, 0].tolist()
 

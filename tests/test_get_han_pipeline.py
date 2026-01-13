@@ -1,4 +1,4 @@
-"""Test get_streamlit_master_table.py"""
+"""Tests for Han pipeline session and logistic regression helpers."""
 
 import unittest
 
@@ -6,7 +6,6 @@ import pandas as pd
 
 from aind_analysis_arch_result_access.han_pipeline import (
     get_logistic_regression,
-    get_mle_model_fitting,
     get_session_table,
 )
 
@@ -52,26 +51,6 @@ class TestGetMasterSessionTable(unittest.TestCase):
         print(f"Earliest session: {df['session_date'].min()}")
         print(f"Latest session: {df['session_date'].max()}")
         print(df.head())
-
-
-class TestGetMLEModelFitting(unittest.TestCase):
-    """Get MLE model fitting results"""
-
-    def test_get_mle_model_fitting(self):
-        """Test get MLE model fitting results for a specific subject and session date."""
-
-        df = get_mle_model_fitting(
-            subject_id="730945",
-            session_date="2024-10-24",
-            if_include_metrics=True,
-            if_include_latent_variables=True,
-            if_download_figures=True,
-            max_threads_for_s3=10,
-        )
-
-        self.assertIsNotNone(df)
-        print(df.head())
-        print(df.columns)
 
 
 class TestGetLogisticRegression(unittest.TestCase):
@@ -128,6 +107,23 @@ class TestGetLogisticRegression(unittest.TestCase):
                 model="invalid_model",
                 if_download_figures=False,
             )
+
+    def test_missing_required_columns(self):
+        """Test get logistic regression with missing required columns."""
+
+        # Missing session_date column
+        df_sessions = pd.DataFrame(
+            {
+                "subject_id": ["769253"],
+            }
+        )
+        with self.assertRaises(ValueError) as context:
+            get_logistic_regression(
+                df_sessions=df_sessions,
+                model="Su2022",
+                if_download_figures=False,
+            )
+        self.assertIn("subject_id and session_date", str(context.exception))
 
 
 if __name__ == "__main__":

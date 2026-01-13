@@ -20,159 +20,163 @@ pip install aind-analysis-arch-result-access
 
 Try the demo: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14Hph9QuySbgSQBKl8PGi_nCQfoLcLUI-?usp=sharing)
 
-### Access pipeline v1.0 (Han's "temporary" pipeline)
+See the [demo notebook](notebook/demo_result_access_API.ipynb) for comprehensive examples.
+
+### Fetch dynamic foraging MLE model fitting results
+
+**New:** Now supports both the **AIND Analysis Framework** and Han's original pipeline with full backward compatibility.
+
+```python
+from aind_analysis_arch_result_access import get_mle_model_fitting
+
+# Get MLE fitting results for a specific session
+df = get_mle_model_fitting(
+    subject_id="730945",
+    session_date="2024-10-24"
+)
+print(df.columns)
+# Index(['_id', 'nwb_name', 'session_date', 'status', 'subject_id',
+#        'analysis_time', 'agent_alias', 'n_trials', 'log_likelihood',
+#        'prediction_accuracy', 'k_model', 'AIC', 'BIC', 'LPT', 'LPT_AIC',
+#        'LPT_BIC', 'params', 'prediction_accuracy_test',
+#        'prediction_accuracy_fit', 'prediction_accuracy_test_bias_only',
+#        'pipeline_source', 'S3_location', 'latent_variables', 'qvalue_spread'],
+#       dtype='object')
+
+print(df[["agent_alias", "n_trials", "AIC", "pipeline_source"]])
+#                      agent_alias  n_trials          AIC          pipeline_source
+# 0  QLearning_L1F0_CKfull_softmax       394   241.922187  han's analysis pipeline
+# 1  QLearning_L1F1_CKfull_softmax       394   238.848589  han's analysis pipeline
+# 2       ForagingCompareThreshold       394   242.957376  han's analysis pipeline
+# ...
+```
+
+#### Control which pipeline version to fetch
+
+By default, only the most recent analysis version is returned (prefers AIND Framework if available):
+
+```python
+# Default: only fetch the most recent version
+df = get_mle_model_fitting(
+    subject_id="778869",
+    session_date="2025-07-26",
+    only_recent_version=True  # default
+)
+# Found 8 records in AIND Analysis Framework
+# Found 12 records in Han's prototype analysis pipeline
+# Total: 20 MLE fitting records!
+# --- After filtering for successful fittings: 14 records (6 skipped) ---
+# --- After filtering for most recent versions: 8 records  ---
+#     AIND Analysis Framework: 8
+#     Han's prototype analysis pipeline: 0
+```
+
+To get results from both pipelines:
+
+```python
+# Get all versions from both pipelines
+df = get_mle_model_fitting(
+    subject_id="778869",
+    session_date="2025-07-26",
+    only_recent_version=False
+)
+# Found 8 records in AIND Analysis Framework
+# Found 12 records in Han's prototype analysis pipeline
+# Total: 20 MLE fitting records!
+# --- After filtering for successful fittings: 14 records (6 skipped) ---
+# WARNING: Duplicated records for the same session and agent_alias!
+#          You should check the nwb_name, n_trials, or pipeline_source
+#          to select the ones you want.
+```
+
+#### Filter by agent/model
+
+```python
+# Get all sessions for a specific model
+df = get_mle_model_fitting(
+    subject_id="730945",
+    agent_alias="QLearning_L2F1_CK1_softmax"
+)
+```
+
+#### Download figures
+
+```python
+df = get_mle_model_fitting(
+    subject_id="730945",
+    session_date="2024-10-24",
+    if_download_figures=True,
+    download_path="./mle_figures"
+)
+```
+
+Example figure:
+
+<img width="1153" alt="image" src="https://github.com/user-attachments/assets/84ebd7d3-ac49-4b8f-a0a6-41cced555437" />
+
+#### Advanced: Custom queries
+
+```python
+df = get_mle_model_fitting(
+    from_custom_query={
+        "analysis_results.fit_settings.agent_alias": "QLearning_L2F1_CK1_softmax",
+        "analysis_results.n_trials": {"$gt": 600},
+    },
+    if_include_latent_variables=False
+)
+print(df.shape)
+# (807, 22)
+```
+
+---
+
+### Access Han's pipeline utilities
+---
+
+### Access Han's pipeline utilities
+
 #### Fetch the session master table in [Streamlit](https://foraging-behavior-browser.allenneuraldynamics-test.org/)
+
 ```python
 from aind_analysis_arch_result_access.han_pipeline import get_session_table
+
 df_master = get_session_table(if_load_bpod=False)  # `if_load_bpod=True` will load additional 4000+ old sessions from bpod
+
+# Get only recent sessions
+df_recent = get_session_table(if_load_bpod=False, only_recent_n_month=6)  # Last 6 months
 ```
 #### Fetch logistic regression results
-- Get logistic regression results from one session
-    ```python
-    from aind_analysis_arch_result_access.han_pipeline import get_logistic_regression
-    df_logistic = get_logistic_regression(
-        df_sessions=pd.DataFrame(
-            {
-                "subject_id": ["769253"],
-                "session_date": ["2025-03-12"],
-            }
-        ),
-        model="Su2022",
-    )
-    ```
-- Get logistic regression results in batch (from any dataframe with `subject_id` and `session_date` columns)
-    ```python
-    df_logistic = get_logistic_regression(
-        df_master.query("subject_id == '769253'"),  # All sessions from a single subject (query from the `df_master` above)
-        model="Su2022",
-        if_download_figures=True,  # Also download fitting plots
-        download_path="./tmp",
-    )
-    ```
+
+Get logistic regression results from one session:
+
+```python
+from aind_analysis_arch_result_access.han_pipeline import get_logistic_regression
+import pandas as pd
+
+df_logistic = get_logistic_regression(
+    df_sessions=pd.DataFrame({
+        "subject_id": ["769253"],
+        "session_date": ["2025-03-12"],
+    }),
+    model="Su2022",
+)
+```
+
+Get logistic regression results in batch:
+
+```python
+df_logistic = get_logistic_regression(
+    df_master.query("subject_id == '769253'"),  # All sessions from a single subject
+    model="Su2022",
+    if_download_figures=True,  # Also download fitting plots
+    download_path="./tmp",
+)
+```
 
 #### Fetch trial table (🚧 under development)
 #### Fetch analysis figures (🚧 under development)
-### Access pipeline v2.0 (AIND analysis architecture)
-#### Fetch dynamic foraging MLE model fitting results
-- Get all MLE fitting results from one session
 
-    ```python
-    from aind_analysis_arch_result_access.han_pipeline import get_mle_model_fitting
-    df = get_mle_model_fitting(subject_id="730945", session_date="2024-10-24")
-
-    print(df.columns)
-    print(df[["agent_alias", "AIC", "prediction_accuracy_10-CV_test"]])
-    ```
-    output
-    ```
-    Query: {'analysis_spec.analysis_name': 'MLE fitting', 'analysis_spec.analysis_ver': 'first version @ 0.10.0', 'subject_id': '730945', 'session_date': '2024-10-24'}
-    Found 5 MLE fitting records!
-    Found 5 successful MLE fitting!
-    Get latent variables from s3: 100%|██████████| 5/5 [00:00<00:00, 58.01it/s]
-
-    Index(['_id', 'nwb_name', 'status', 'agent_alias', 'log_likelihood', 'AIC',
-          'BIC', 'LPT', 'LPT_AIC', 'LPT_BIC', 'k_model', 'n_trials',
-          'prediction_accuracy', 'prediction_accuracy_test',
-          'prediction_accuracy_fit', 'prediction_accuracy_test_bias_only',
-          'params', 'prediction_accuracy_10-CV_test',
-          'prediction_accuracy_10-CV_test_std', 'prediction_accuracy_10-CV_fit',
-          'prediction_accuracy_10-CV_fit_std',
-          'prediction_accuracy_10-CV_test_bias_only',
-          'prediction_accuracy_10-CV_test_bias_only_std', 'latent_variables'],
-          dtype='object')
-
-                      agent_alias          AIC  prediction_accuracy_10-CV_test
-    0  QLearning_L1F1_CK1_softmax   239.519051                        0.898151
-    1         QLearning_L1F0_epsi   403.621460                        0.762075
-    2  QLearning_L2F1_CK1_softmax   236.265381                        0.903280
-    3                        WSLS  4051.958064                        0.636196
-    4      QLearning_L2F1_softmax   236.512476                        0.888611
-    ```
-    Now the latent variables also contain the `rpe`.
-    ```python
-    df.latent_variables.iloc[0].keys()
-    ```
-    output
-    ```
-    dict_keys(['q_value', 'choice_kernel', 'choice_prob', 'rpe'])
-    ```
-
--  Also download figures
-    ```python
-    df = get_mle_model_fitting(
-        subject_id="730945",
-        session_date="2024-10-24",
-        if_download_figures=True,
-        download_path="./mle_figures",
-    )
-    !ls ./mle_figures
-    ```
-    output
-    ```
-    Query: {'analysis_spec.analysis_name': 'MLE fitting', 'analysis_spec.analysis_ver': 'first version @ 0.10.0', 'subject_id': '730945', 'session_date': '2024-10-24'}
-    Found 5 MLE fitting records!
-    Found 5 successful MLE fitting!
-    Get latent variables from s3: 100%|██████████| 5/5 [00:00<00:00, 85.87it/s]
-    Download figures from s3: 100%|██████████| 5/5 [00:00<00:00, 86.45it/s]
-
-    730945_2024-10-24_17-38-06_QLearning_L1F0_epsi_58cc5b6f6e.png
-    730945_2024-10-24_17-38-06_QLearning_L1F1_CK1_softmax_3ffdf98012.png
-    730945_2024-10-24_17-38-06_QLearning_L2F1_CK1_softmax_5ce7f1f816.png
-    730945_2024-10-24_17-38-06_QLearning_L2F1_softmax_ec59be40c0.png
-    730945_2024-10-24_17-38-06_WSLS_7c61d01e0f.png
-    ```
-    Example figure:
-
-    <img width="1153" alt="image" src="https://github.com/user-attachments/assets/84ebd7d3-ac49-4b8f-a0a6-41cced555437" />
-
-
-- Get fittings from all sessions of a mouse for a specific model
-    ```python
-    df = get_mle_model_fitting(
-        subject_id="730945",
-        agent_alias="QLearning_L2F1_CK1_softmax",
-        if_download_figures=False,
-    )
-    print(df.iloc[:10][["nwb_name", "agent_alias"]])
-    ```
-    output
-    ```
-    Query: {'analysis_spec.analysis_name': 'MLE fitting', 'analysis_spec.analysis_ver': 'first version @ 0.10.0', 'subject_id': '730945', 'analysis_results.fit_settings.agent_alias': 'QLearning_L2F1_CK1_softmax'}
-    Found 32 MLE fitting records!
-    Found 32 successful MLE fitting!
-    Get latent variables from s3: 100%|██████████| 32/32 [00:00<00:00, 80.81it/s]
-
-                            nwb_name                 agent_alias
-    0  730945_2024-08-27_16-07-16.nwb  QLearning_L2F1_CK1_softmax
-    1  730945_2024-09-05_16-47-58.nwb  QLearning_L2F1_CK1_softmax
-    2  730945_2024-10-23_15-33-07.nwb  QLearning_L2F1_CK1_softmax
-    3  730945_2024-09-19_17-26-54.nwb  QLearning_L2F1_CK1_softmax
-    4  730945_2024-09-04_16-04-38.nwb  QLearning_L2F1_CK1_softmax
-    5  730945_2024-08-30_15-55-05.nwb  QLearning_L2F1_CK1_softmax
-    6  730945_2024-08-29_15-50-57.nwb  QLearning_L2F1_CK1_softmax
-    7  730945_2024-10-24_17-38-06.nwb  QLearning_L2F1_CK1_softmax
-    8  730945_2024-09-12_17-21-58.nwb  QLearning_L2F1_CK1_softmax
-    9  730945_2024-09-03_15-49-53.nwb  QLearning_L2F1_CK1_softmax
-    ```
-
-- (for advanced users) Use your own docDB query
-    ```python
-    df = get_mle_model_fitting(
-        from_custom_query={
-            "analysis_results.fit_settings.agent_alias": "QLearning_L2F1_CK1_softmax",
-            "analysis_results.n_trials" : {"$gt": 600},
-        },
-        if_include_latent_variables=False,
-        if_download_figures=False,
-    )
-    ```
-    output
-    ```
-    Query: {'analysis_spec.analysis_name': 'MLE fitting', 'analysis_spec.analysis_ver': 'first version @ 0.10.0', 'analysis_results.fit_settings.agent_alias': 'QLearning_L2F1_CK1_softmax', 'analysis_results.n_trials': {'$gt': 600}}
-    Found 807 MLE fitting records!
-    Found 807 successful MLE fitting!
-    ```
-
+---
 
 ## Contributing
 
