@@ -216,6 +216,31 @@ def get_session_table(if_load_bpod=False, only_recent_n_month=None) -> pd.DataFr
         how="left",
     )
 
+    # --- Normalize curriculum and stage name ---
+    # Fix some sessions during transition period from old to new curriculum system
+    map_stage = {
+        "stage_1_warmup": "STAGE_1_WARMUP",
+        "stage_1": "STAGE_1",
+        "stage_2": "STAGE_2",
+        "stage_3": "STAGE_3",
+        "stage_4": "STAGE_4",
+        "final": "STAGE_FINAL",
+    }
+    df["current_stage_actual"] = (
+        df["current_stage_actual"].map(map_stage).fillna(df["current_stage_actual"])
+    )
+
+    map_curriculum = {
+        "UnCoupledNoBaiting2p3Curriculum": ["Uncoupled Without Baiting", "2.3"],
+        "UnCoupledBaiting2p3Curriculum": ["Uncoupled Baiting", "2.3"],
+        "UncoupledNoBaiting2p3p1RewardDelayCurriculum": [
+            "Uncoupled Without Baiting with Reward Delay",
+            "2.3.1rwdDelay159",
+        ],
+    }
+    for key, value in map_curriculum.items():
+        df.loc[df["curriculum_name"] == key, ["curriculum_name", "curriculum_version"]] = value
+
     # curriculum version group
     df["curriculum_version_group"] = df["curriculum_version"].map(curriculum_ver_mapper)
 
